@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Offline | Smart City Service Portal</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            overflow: hidden;
+        }
+
+        .card {
+            width: 92%;
+            max-width: 470px;
+            background: rgba(255, 255, 255, .08);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, .12);
+            border-radius: 22px;
+            padding: 45px 35px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, .35);
+        }
+
+        .icon {
+            font-size: 70px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 30px;
+            margin-bottom: 15px;
+        }
+
+        p {
+            color: #d1d5db;
+            line-height: 1.7;
+            margin-bottom: 35px;
+            font-size: 16px;
+        }
+
+        button {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            background: #f59e0b;
+            color: white;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: .3s;
+        }
+
+        button:hover {
+            background: #d97706;
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="card">
+
+        <img src="/logo.png" alt="Smart City Service Portal Logo" width="100" height="100" style="margin-bottom:25px;">
+
+        <h1>No Internet Connection</h1>
+
+        <p>
+            You are currently offline.
+            Please check your internet connection and try again.
+        </p>
+
+        <button onclick="window.location.reload()">
+            Retry
+        </button>
+
+        <div class="footer">
+            Smart City Service Portal
+        </div>
+
+    </div>
+
+</body>
+
+</html>
