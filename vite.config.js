@@ -7,11 +7,12 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+
     VitePWA({
       registerType: "autoUpdate",
 
       workbox: {
-        navigateFallback: "/offline.html",
+        // ❌ navigateFallback: "/offline.html" हटाइएको
 
         runtimeCaching: [
           {
@@ -40,6 +41,7 @@ export default defineConfig({
         display: "standalone",
         background_color: "#ffffff",
         theme_color: "#0f172a",
+
         icons: [
           {
             src: "icon-192.png",
@@ -59,48 +61,28 @@ export default defineConfig({
             short_name: "Complaint",
             description: "Submit a complaint",
             url: "/complaint",
-            icons: [
-              {
-                src: "icon-192.png",
-                sizes: "192x192",
-              },
-            ],
+            icons: [{ src: "icon-192.png", sizes: "192x192" }],
           },
           {
             name: "Emergency",
             short_name: "Emergency",
             description: "Emergency Services",
             url: "/emergency",
-            icons: [
-              {
-                src: "icon-192.png",
-                sizes: "192x192",
-              },
-            ],
+            icons: [{ src: "icon-192.png", sizes: "192x192" }],
           },
           {
             name: "Notices",
             short_name: "Notices",
             description: "Latest Notices",
             url: "/notices",
-            icons: [
-              {
-                src: "icon-192.png",
-                sizes: "192x192",
-              },
-            ],
+            icons: [{ src: "icon-192.png", sizes: "192x192" }],
           },
           {
             name: "Dashboard",
             short_name: "Dashboard",
             description: "Citizen Dashboard",
             url: "/user",
-            icons: [
-              {
-                src: "icon-192.png",
-                sizes: "192x192",
-              },
-            ],
+            icons: [{ src: "icon-192.png", sizes: "192x192" }],
           },
         ],
       },

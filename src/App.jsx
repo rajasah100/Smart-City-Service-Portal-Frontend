@@ -48,6 +48,7 @@ import EventrRegistration from './pages/EventrRegistration'
 import AdminEventPage from './pages/admin/AdminEventPage'
 import EventRegistrationPage from './pages/admin/EventRegistrationPage'
 import About from './pages/About'
+import ScrollToTop from './components/common/ScrollToTop'
 
 
 
@@ -57,6 +58,7 @@ const App = () => {
   return (
     <Provider store={store}>
       <BrowserRouter>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<HomeLayout />}>
             {/* Public Routes */}
