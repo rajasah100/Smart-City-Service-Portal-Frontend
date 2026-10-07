@@ -19,6 +19,7 @@ import {
 } from "react-icons/fa";
 
 import apiRequest from "../../utils/apiRequest";
+import { applySeo, noticeJsonLd } from "../../utils/seo";
 import useSiteSettings from "../../hooks/useSiteSettings";
 import defaultLogo from "../../assets/logo-small.png";
 
@@ -104,10 +105,20 @@ const NoticeDetailsPage = () => {
         };
     }, [notice, category]);
 
-    // Browser tab ma notice ko title
+    // SEO: title, description ra Google ko NewsArticle structured data
     useEffect(() => {
-        if (notice?.title) document.title = `${notice.title} | Smart City Service Portal`;
-    }, [notice?.title]);
+        if (!notice?.title) return;
+        applySeo({
+            siteName: t("seo.siteName"),
+            title: notice.title,
+            description: notice.description,
+            path: `/notices/${id}`,
+            image: notice.attachment?.find?.((a) => a.type === "image")?.url,
+            type: "article",
+            lang: i18n.resolvedLanguage === "en" ? "en" : "ne",
+            jsonLd: noticeJsonLd(notice, t("seo.siteName")),
+        });
+    }, [notice, id, t, i18n.resolvedLanguage]);
 
     const pageUrl = typeof window !== "undefined" ? window.location.href : "";
 

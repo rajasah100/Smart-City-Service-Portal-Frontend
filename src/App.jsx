@@ -13,6 +13,7 @@ import PublicRoute from './components/common/PublicRoute'
 import DepartmentPublicRoute from './components/common/DepartmentPublicRoute'
 import InstallPWAButton from './components/common/InstallPWAButton'
 import ScrollToTop from './components/common/ScrollToTop'
+import SeoManager from './components/common/SeoManager'
 import LoadingSpinner from './components/common/LoadingSpinner'
 
 // Page haru lazy-load garne: admin/department ko code normal user le download garnu pardaina
@@ -65,6 +66,7 @@ const App = () => {
     <Provider store={store}>
       <BrowserRouter>
         <ScrollToTop />
+        <SeoManager />
         <Suspense fallback={<LoadingSpinner />}>
         <Routes>
           <Route path="/" element={<HomeLayout />}>

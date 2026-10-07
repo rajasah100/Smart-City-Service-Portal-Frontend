@@ -256,7 +256,7 @@ const en = {
         "notice": "Notices",
         "tender": "Tenders",
         "news": "News",
-        "press": "Press Releases",
+        "press": "Press",
         "empty": "Nothing published yet."
     },
 
@@ -1364,6 +1364,84 @@ const en = {
                 "event": "Add event",
                 "emergency": "Emergency services",
                 "settings": "Portal settings"
+            }
+        }
+    },
+    seo: {
+        "siteName": "Smart City Service Portal",
+        "description": "File complaints online, track their status, read notices and events, and get emergency help — Smart City Service Portal for citizens of Nepal.",
+        "pages": {
+            "home": {
+                "title": "Smart City Service Portal — Online complaints, notices and emergency help",
+                "description": "File and track complaints, read the latest notices, tenders and events, and find emergency numbers and nearby hospitals in one place."
+            },
+            "services": {
+                "title": "Citizen services",
+                "description": "All citizen services of the portal: complaint registration, tracking, notices, events and emergency help."
+            },
+            "notices": {
+                "title": "Notices, tenders and news",
+                "description": "Latest public notices, tenders, news and press releases published by departments."
+            },
+            "events": {
+                "title": "Events and programs",
+                "description": "Upcoming health camps, trainings, awareness programs and public events. Register online."
+            },
+            "emergency": {
+                "title": "Emergency help — 100, 101, 102",
+                "description": "Emergency hotlines, SOS live location, nearby hospitals, police and fire stations, alerts and safety guide."
+            },
+            "about": {
+                "title": "About the portal",
+                "description": "About Smart City Service Portal, its goals, team and how to contact us."
+            },
+            "downloads": {
+                "title": "Downloads",
+                "description": "Forms, acts, procedures and reports to download."
+            },
+            "government": {
+                "title": "Government services",
+                "description": "Information about public offices and government services."
+            },
+            "privacy": {
+                "title": "Privacy policy",
+                "description": "How the portal collects, uses and protects your information."
+            },
+            "terms": {
+                "title": "Terms of use",
+                "description": "Terms and conditions for using the Smart City Service Portal."
+            },
+            "accessibility": {
+                "title": "Accessibility",
+                "description": "Accessibility features and how to report problems using the portal."
+            },
+            "login": {
+                "title": "Log in",
+                "description": "Log in to file and track your complaints."
+            },
+            "register": {
+                "title": "Create an account",
+                "description": "Create a free account to file complaints and register for events."
+            },
+            "complaint": {
+                "title": "File a complaint",
+                "description": "Register a complaint with the responsible department and track it online."
+            },
+            "dashboard": {
+                "title": "My dashboard",
+                "description": "Your complaints, notifications and settings."
+            },
+            "admin": {
+                "title": "Admin portal",
+                "description": "Portal administration."
+            },
+            "department": {
+                "title": "Department portal",
+                "description": "Department complaint management."
+            },
+            "notFound": {
+                "title": "Page not found",
+                "description": "The page you are looking for does not exist."
             }
         }
     },

@@ -20,6 +20,7 @@ import {
 
 import apiRequest from "../utils/apiRequest";
 import { formatBS } from "../utils/nepaliDate";
+import { applySeo, eventJsonLd } from "../utils/seo";
 import { STATUS_STYLES } from "../components/index/event/eventUtils";
 
 const InfoRow = ({ icon: Icon, label, children }) => (
@@ -113,9 +114,20 @@ const EventDetails = () => {
     const status = result.id === id ? result.status : "loading";
     const isRegistered = registered.id === id && registered.value;
 
+    // SEO: title, description, share image ra Google ko Event structured data
     useEffect(() => {
-        if (event?.title) document.title = `${event.title} | Smart City Service Portal`;
-    }, [event?.title]);
+        if (!event?.title) return;
+        applySeo({
+            siteName: t("seo.siteName"),
+            title: event.title,
+            description: event.description,
+            path: `/events/${id}`,
+            image: event.image?.url,
+            type: "article",
+            lang: i18n.resolvedLanguage === "en" ? "en" : "ne",
+            jsonLd: eventJsonLd(event, t("seo.siteName")),
+        });
+    }, [event, id, t, i18n.resolvedLanguage]);
 
     // ===== Loading =====
     if (status === "loading") {

@@ -63,7 +63,7 @@ const HeroCarousel = () => {
 
     return (
         <div
-            className="relative h-80 overflow-hidden rounded-xl bg-[#10151c] shadow-lg sm:h-96 lg:h-full lg:min-h-105"
+            className="relative h-80 overflow-hidden rounded-xl bg-[#10151c] shadow-lg sm:h-96 lg:h-full"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
             onFocus={() => setHovered(true)}
@@ -92,10 +92,10 @@ const HeroCarousel = () => {
 
                     {/* Caption */}
                     <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
-                        <div className="max-w-xl border-l-4 border-[#dc143c] pl-4">
-                            <h2 className="text-xl font-bold text-white sm:text-3xl">{slide.title}</h2>
+                        <div className="max-w-2xl border-l-4 border-[#dc143c] pl-4">
+                            <h2 className="line-clamp-2 text-xl font-bold leading-tight text-white drop-shadow sm:text-3xl">{slide.title}</h2>
                             {slide.text && (
-                                <p className="mt-2 text-sm text-slate-200 sm:text-base">{slide.text}</p>
+                                <p className="mt-2 line-clamp-2 text-sm text-slate-200 sm:text-base">{slide.text}</p>
                             )}
                         </div>
 
@@ -132,7 +132,7 @@ const HeroCarousel = () => {
                     <button
                         onClick={() => go(current - 1)}
                         aria-label={t("homeGov.heroGov.prev")}
-                        className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
+                        className="absolute left-3 top-1/2 hidden h-10 w-10 sm:flex -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
                     >
                         <FaChevronLeft />
                     </button>
@@ -140,7 +140,7 @@ const HeroCarousel = () => {
                     <button
                         onClick={() => go(current + 1)}
                         aria-label={t("homeGov.heroGov.next")}
-                        className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
+                        className="absolute right-3 top-1/2 hidden h-10 w-10 sm:flex -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
                     >
                         <FaChevronRight />
                     </button>

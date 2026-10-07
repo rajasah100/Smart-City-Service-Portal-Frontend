@@ -106,9 +106,9 @@ const Navbar = () => {
                         />
 
                         <div className="min-w-0 leading-tight">
-                            <h1 className="whitespace-nowrap text-lg font-bold text-white">
+                            <p className="whitespace-nowrap text-lg font-bold text-white">
                                 Smart <span className="text-[#d9a441]">City</span>
-                            </h1>
+                            </p>
 
                             <p className="text-[11px] text-slate-400">
                                 Service Portal

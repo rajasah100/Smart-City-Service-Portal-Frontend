@@ -1,7 +1,11 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/sitemap.xml",
+      "destination": "https://smart-city-service-portal-backend.onrender.com/api/sitemap.xml"
+    },
+    {
+      "source": "/((?!robots\\.txt$).*)",
       "destination": "/index.html"
     }
   ]

@@ -53,9 +53,9 @@ const HeroNoticePanel = () => {
     };
 
     return (
-        <div className="flex h-full flex-col gap-4">
+        <div className="flex h-full min-h-0 flex-col gap-4">
             {/* Notices */}
-            <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
                 {/* Tabs */}
                 <div role="tablist" className="grid grid-cols-4 bg-[#003893] text-white">
@@ -65,7 +65,7 @@ const HeroNoticePanel = () => {
                             role="tab"
                             aria-selected={active === tab}
                             onClick={() => setActive(tab)}
-                            className={`border-b-4 px-1 py-3 text-xs font-semibold transition sm:text-sm ${
+                            className={`truncate border-b-4 px-1 py-3 text-xs font-semibold transition sm:text-sm ${
                                 active === tab
                                     ? "border-[#dc143c] bg-white/15"
                                     : "border-transparent text-white/80 hover:bg-white/10 hover:text-white"
@@ -76,7 +76,7 @@ const HeroNoticePanel = () => {
                     ))}
                 </div>
 
-                <ul role="tabpanel" className="flex-1 divide-y divide-slate-100">
+                <ul role="tabpanel" className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto">
                     {loading &&
                         [1, 2, 3, 4].map((item) => (
                             <li key={item} className="space-y-2 px-4 py-3">

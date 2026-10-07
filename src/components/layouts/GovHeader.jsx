@@ -22,11 +22,6 @@ const GovHeader = () => {
         return () => window.removeEventListener("scroll", onScroll);
     }, []);
 
-    // Browser tab ma nagarpalika ko naam
-    useEffect(() => {
-        document.title = `${isEn ? settings.nameEn : settings.nameNe} | Smart City Service Portal`;
-    }, [isEn, settings.nameEn, settings.nameNe]);
-
     const today = new Date();
     const bsDate = new NepaliDate(today).format("YYYY MMMM DD, ddd", isEn ? "en" : "np");
     const adDate = today.toLocaleDateString("en-GB", {
