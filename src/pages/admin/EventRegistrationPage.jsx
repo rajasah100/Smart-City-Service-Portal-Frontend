@@ -44,7 +44,7 @@ const EventRegistrationPage = () => {
     });
 
     return (
-        <div className="p-6">
+        <div>
 
             <div className="flex justify-between items-center mb-6">
 

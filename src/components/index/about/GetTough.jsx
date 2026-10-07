@@ -1,176 +1,133 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-    FaMapMarkerAlt,
-    FaPhoneAlt,
-    FaEnvelope,
-    FaArrowRight,
-    FaClock,
-} from "react-icons/fa";
+import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
+import { FaClock, FaEnvelope, FaMapMarkerAlt, FaPaperPlane, FaPhoneAlt } from "react-icons/fa";
+import apiRequest from "../../../utils/apiRequest";
+import useSiteSettings from "../../../hooks/useSiteSettings";
+import Reveal from "../../common/Reveal";
 
-const contactInfo = [
-    {
-        icon: <FaMapMarkerAlt size={22} />,
-        title: "Location",
-        value: "Madan Bhandari College of Engineering\nUrlabari-03, Morang, Nepal",
-    },
-    {
-        icon: <FaPhoneAlt size={22} />,
-        title: "Phone",
-        value: "+977 9804702922\n+977 9812060473",
-    },
-    {
-        icon: <FaEnvelope size={22} />,
-        title: "Email",
-        value: "info@smartcity.gov.np\nrajakumarshah95@gmail.com",
-    },
-    {
-        icon: <FaClock size={22} />,
-        title: "Office Hours",
-        value: "Sunday - Friday\n9:00 AM - 5:00 PM",
-    },
-];
+const EMPTY = { name: "", email: "", phone: "", subject: "", message: "" };
 
+// Sampark jankari (Settings bata) + sachchi kaam garne message form
 const GetTouch = () => {
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
+    const settings = useSiteSettings();
+
+    const [form, setForm] = useState(EMPTY);
+    const [sending, setSending] = useState(false);
+
+    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!form.name.trim() || !form.email.trim() || !form.subject.trim() || !form.message.trim()) {
+            toast.error(t("aboutPage.form.required"));
+            return;
+        }
+
+        setSending(true);
+
+        try {
+            await apiRequest.post("/contact", form);
+            toast.success(t("aboutPage.form.success"));
+            setForm(EMPTY);
+        } catch (error) {
+            toast.error(error.response?.data?.message || t("aboutPage.form.failed"));
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const na = t("aboutPage.notAvailable");
+
+    const info = [
+        { icon: FaMapMarkerAlt, label: t("aboutPage.address"), value: isEn ? settings.addressEn : settings.addressNe },
+        { icon: FaPhoneAlt, label: t("aboutPage.phone"), value: settings.phone, href: settings.phone && `tel:${settings.phone}` },
+        { icon: FaEnvelope, label: t("aboutPage.email"), value: settings.email, href: settings.email && `mailto:${settings.email}` },
+        { icon: FaClock, label: t("aboutPage.hours"), value: isEn ? settings.officeHoursEn : settings.officeHoursNe },
+    ];
+
+    const inputClass =
+        "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#003893] focus:ring-2 focus:ring-[#003893]/20";
+
     return (
-        <section className="bg-slate-50 py-20 px-4">
-            <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                {/* Heading */}
-                <div className="max-w-3xl mx-auto text-center">
-                    <span className="inline-block rounded-full bg-blue-100 px-4 py-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
-                        Get In Touch
+        <section id="contact" className="bg-slate-50 py-20">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <Reveal className="mx-auto mb-12 max-w-2xl text-center">
+                    <span className="text-sm font-semibold uppercase tracking-widest text-[#d9a441]">
+                        {t("aboutPage.contactLabel")}
                     </span>
+                    <h2 className="mt-2 text-3xl font-bold text-slate-900">{t("aboutPage.contactTitle")}</h2>
+                    <div className="mx-auto mt-4 h-1 w-20 rounded-full bg-[#d9a441]" />
+                    <p className="mt-4 text-slate-500">{t("aboutPage.contactText")}</p>
+                </Reveal>
 
-                    <h2 className="mt-5 text-4xl font-bold text-slate-900">
-                        Contact Smart City Portal Team
-                    </h2>
-
-                    <p className="mt-6 text-lg leading-8 text-slate-600">
-                        Have questions, suggestions, or feedback about the Smart City
-                        Information Portal? We'd love to hear from you. Our team is always
-                        ready to assist and improve your experience.
-                    </p>
-                </div>
-
-                {/* Contact Section */}
-                <div className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    {/* Left Side - Contact Details */}
-                    <div className="space-y-6">
-                        {contactInfo.map((item, index) => (
-                            <div
-                                key={index}
-                                className="flex items-start gap-5 rounded-2xl bg-white border border-slate-200 p-6 shadow-sm hover:shadow-lg transition"
-                            >
-                                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                                    {item.icon}
-                                </div>
-
-                                <div>
-                                    <h3 className="text-xl font-semibold text-slate-900">
-                                        {item.title}
-                                    </h3>
-
-                                    <p className="mt-2 whitespace-pre-line text-slate-600 leading-7">
-                                        {item.value}
-                                    </p>
+                <div className="grid gap-8 lg:grid-cols-5">
+                    {/* Contact info */}
+                    <Reveal className="space-y-4 lg:col-span-2">
+                        {info.map(({ icon: Icon, label, value, href }) => (
+                            <div key={label} className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#003893]/10 text-lg text-[#003893]">
+                                    <Icon />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-900">{label}</p>
+                                    {value && href ? (
+                                        <a href={href} className="mt-0.5 block break-all text-slate-600 hover:text-[#003893]">{value}</a>
+                                    ) : (
+                                        <p className="mt-0.5 text-slate-600">{value || na}</p>
+                                    )}
                                 </div>
                             </div>
                         ))}
-                    </div>
+                    </Reveal>
 
-                    {/* Right Side - Contact Form */}
-                    <div className="rounded-2xl bg-white border border-slate-200 p-8 shadow-sm">
-                        <h3 className="text-2xl font-bold text-slate-900 mb-6">
-                            Send us a Message
-                        </h3>
+                    {/* Form */}
+                    <Reveal delay={120} className="lg:col-span-3">
+                        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 border-t-4 border-t-[#003893] bg-white p-6 shadow-sm sm:p-8">
+                            <h3 className="text-xl font-bold text-slate-900">{t("aboutPage.form.title")}</h3>
 
-                        <form className="space-y-5">
-                            <div>
-                                <label className="block mb-2 text-sm font-medium text-slate-700">
-                                    Full Name
-                                </label>
+                            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                {t("aboutPage.form.complaintHint")}{" "}
+                                <Link to="/complaint" className="font-semibold underline">{t("aboutPage.form.complaintLink")}</Link>
+                            </p>
 
-                                <input
-                                    type="text"
-                                    placeholder="Enter your full name"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block mb-2 text-sm font-medium text-slate-700">
-                                    Email Address
-                                </label>
-
-                                <input
-                                    type="email"
-                                    placeholder="Enter your email"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block mb-2 text-sm font-medium text-slate-700">
-                                    Subject
-                                </label>
-
-                                <input
-                                    type="text"
-                                    placeholder="Enter subject"
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-blue-500 focus:outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block mb-2 text-sm font-medium text-slate-700">
-                                    Message
-                                </label>
-
-                                <textarea
-                                    rows="5"
-                                    placeholder="Write your message..."
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 focus:border-blue-500 focus:outline-none resize-none"
-                                ></textarea>
+                            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">{t("aboutPage.form.name")} *</label>
+                                    <input name="name" value={form.name} onChange={handleChange} required maxLength={100} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">{t("aboutPage.form.email")} *</label>
+                                    <input type="email" name="email" value={form.email} onChange={handleChange} required maxLength={150} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">{t("aboutPage.form.phone")}</label>
+                                    <input name="phone" value={form.phone} onChange={handleChange} maxLength={20} className={inputClass} />
+                                </div>
+                                <div>
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">{t("aboutPage.form.subject")} *</label>
+                                    <input name="subject" value={form.subject} onChange={handleChange} required maxLength={150} className={inputClass} />
+                                </div>
+                                <div className="sm:col-span-2">
+                                    <label className="mb-1.5 block text-sm font-medium text-slate-700">{t("aboutPage.form.message")} *</label>
+                                    <textarea name="message" rows={5} value={form.message} onChange={handleChange} required maxLength={2000} className={`${inputClass} resize-none`} />
+                                </div>
                             </div>
 
                             <button
                                 type="submit"
-                                className="inline-flex items-center gap-2 rounded-xl bg-[#4a6c8f] px-6 py-3 font-semibold text-white transition hover:bg-[#36516d]"
+                                disabled={sending}
+                                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#003893] py-3 font-semibold text-white transition hover:bg-[#002a6e] disabled:opacity-60 sm:w-auto sm:px-8"
                             >
-                                Send Message
-                                <FaArrowRight />
+                                <FaPaperPlane className="text-sm" />
+                                {sending ? t("aboutPage.form.sending") : t("aboutPage.form.send")}
                             </button>
                         </form>
-                    </div>
-                </div>
-
-                {/* CTA Section */}
-                <div className="mt-20 rounded-3xl bg-gradient-to-r from-[#1e2a38] to-[#10151c] px-8 py-14 text-center">
-                    <h3 className="text-3xl font-bold text-white">
-                        Need Immediate Assistance?
-                    </h3>
-
-                    <p className="mt-4 max-w-2xl mx-auto text-slate-300">
-                        Whether you have technical questions, feature suggestions, or need
-                        help using the Smart City Information Portal, our team is here to
-                        assist you.
-                    </p>
-
-                    <div className="mt-8 flex flex-wrap justify-center gap-4">
-                        <Link
-                            to="/services"
-                            className="inline-flex items-center gap-2 rounded-md bg-[#d9a441] px-7 py-3 font-semibold text-slate-900 transition hover:bg-[#c6912d]"
-                        >
-                            Explore Services
-                            <FaArrowRight />
-                        </Link>
-
-                        <Link
-                            to="/emergency"
-                            className="inline-flex items-center rounded-md border border-white px-7 py-3 font-semibold transition text-red-500 hover:bg-red-500 hover:text-white"
-                        >
-                            Emergency Service
-                        </Link>
-                    </div>
+                    </Reveal>
                 </div>
             </div>
         </section>

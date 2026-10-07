@@ -1,30 +1,34 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import aiService from "../../utils/aiService";
 
-// Send Message to AI
+let nextId = 1;
+
+// Sandesh pathaune: pending ma user ko sandesh thapincha, history ma tyo bhanda agadi ka matra
 export const sendAIMessage = createAsyncThunk(
   "ai/sendMessage",
-  async (message, thunkAPI) => {
+  async ({ message, language }, { getState, rejectWithValue }) => {
+    const history = getState()
+      .ai.messages.slice(0, -1)
+      .filter((m) => !m.errorCode && m.text)
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.text }));
+
     try {
-      return await aiService.sendAIMessage(message);
+      return await aiService.sendAIMessage({ message, history, language });
     } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || "Failed to get AI response.",
-      );
+      const status = error.response?.status;
+      const code = error.response?.data?.code || (status === 429 ? "RATE_LIMIT" : status === 503 ? "AI_UNAVAILABLE" : "GENERIC");
+      return rejectWithValue(code);
     }
   },
 );
 
 const initialState = {
-  messages: [
-    {
-      sender: "ai",
-      text: "👋 Hello! I am your Smart City AI Assistant. How can I help you today?",
-    },
-  ],
-
+  // { id, role: "user" | "assistant", text, at, actions?, errorCode? }
+  messages: [],
   loading: false,
-  error: null,
+  // AI le banaeko gunaso ko draft: ComplaintPage le form ma bharchha
+  complaintData: null,
 };
 
 const aiSlice = createSlice({
@@ -32,79 +36,47 @@ const aiSlice = createSlice({
   initialState,
 
   reducers: {
-    // User message immediately add
-    addUserMessage: (state, action) => {
-      state.messages.push({
-        sender: "user",
-        text: action.payload,
-      });
-    },
-
-    // AI message manually add (optional)
-    addAIMessage: (state, action) => {
-      state.messages.push({
-        sender: "ai",
-        ...(typeof action.payload === "string"
-          ? { text: action.payload }
-          : action.payload),
-      });
-    },
-
-    // Clear only messages
     clearChat: (state) => {
-      state.messages = [
-        {
-          sender: "ai",
-          text: "👋 Hello! I am your Smart City AI Assistant. How can I help you today?",
-        },
-      ];
-
+      state.messages = [];
       state.loading = false;
-      state.error = null;
+    },
+
+    setComplaintData: (state, action) => {
+      state.complaintData = action.payload;
+    },
+
+    clearComplaintData: (state) => {
+      state.complaintData = null;
     },
   },
 
   extraReducers: (builder) => {
     builder
-
-      // Send Message
-      .addCase(sendAIMessage.pending, (state) => {
+      .addCase(sendAIMessage.pending, (state, action) => {
         state.loading = true;
-        state.error = null;
+        state.messages.push({ id: nextId++, role: "user", text: action.meta.arg.message, at: Date.now() });
       })
 
       .addCase(sendAIMessage.fulfilled, (state, action) => {
         state.loading = false;
-
-        const reply = action.payload.reply;
-
-        if (typeof reply === "string") {
-          state.messages.push({
-            sender: "ai",
-            text: reply,
-          });
-        } else {
-          state.messages.push({
-            sender: "ai",
-            text: reply.message,
-            action: reply.action,
-          });
-        }
+        const reply = action.payload.reply || {};
+        state.messages.push({
+          id: nextId++,
+          role: "assistant",
+          at: Date.now(),
+          text: reply.text || "",
+          actions: reply.actions || [],
+          ...(reply.text || reply.actions?.length ? {} : { errorCode: "GENERIC" }),
+        });
       })
 
       .addCase(sendAIMessage.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
-
-        state.messages.push({
-          sender: "ai",
-          text:
-            action.payload || "Sorry, something went wrong. Please try again.",
-        });
+        state.messages.push({ id: nextId++, role: "assistant", text: "", at: Date.now(), errorCode: action.payload || "GENERIC" });
       });
   },
 });
 
-export const { addUserMessage, addAIMessage, clearChat } = aiSlice.actions;
+export const { clearChat, setComplaintData, clearComplaintData } = aiSlice.actions;
 
 export default aiSlice.reducer;

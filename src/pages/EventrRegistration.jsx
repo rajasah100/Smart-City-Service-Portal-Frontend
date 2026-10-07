@@ -1,3 +1,4 @@
+import { toast } from "react-toastify";
 import { useEffect, useState } from "react";
 import { FaArrowLeft, FaCalendarAlt, FaMapMarkerAlt } from "react-icons/fa";
 import { Link, useParams } from "react-router-dom";
@@ -39,11 +40,11 @@ const EventrRegistration = () => {
 
             await dispatch(checkRegistration(id));
 
-            alert("Event registration successful.");
+            toast.success("Event registration successful.");
 
             setPhone("");
         } catch (error) {
-            alert(error.message || "Registration failed.");
+            toast.error(error.message || "Registration failed.");
         }
     };
 

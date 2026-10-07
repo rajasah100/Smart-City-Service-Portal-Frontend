@@ -1,117 +1,156 @@
+import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
-import { FaBolt, FaGripfire, FaPhoneAlt, FaTint } from "react-icons/fa";
+import {
+    FaCar,
+    FaChild,
+    FaFemale,
+    FaGripfire,
+    FaMapMarkerAlt,
+    FaPhoneAlt,
+    FaPlaneArrival,
+} from "react-icons/fa";
 import { MdLocalHospital, MdLocalPolice } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import { getDepartments } from "../../../redux/slices/departmentSlice";
-import LoadingSpinner from "../../common/LoadingSpinner";
+import SectionHeading from "./SectionHeading";
+import { departmentIcon } from "../../complaint/departmentKind";
+import { serviceAreaText } from "../../department/deptUtils";
 
+// Nepal ko rashtriya hotline (toll-free)
+const hotlines = [
+    { key: "police", number: "100", icon: MdLocalPolice },
+    { key: "fire", number: "101", icon: FaGripfire },
+    { key: "ambulance", number: "102", icon: MdLocalHospital },
+    { key: "traffic", number: "103", icon: FaCar },
+    { key: "child", number: "1098", icon: FaChild },
+    { key: "tourist", number: "1144", icon: FaPlaneArrival },
+    { key: "women", number: "1145", icon: FaFemale },
+];
 
 const EmergencyContacts = () => {
     const dispatch = useDispatch();
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
 
-    const {
-        departments = [],
-        loading
-    } = useSelector((state) => state.department);
+    const { departments: allDepartments = [], loading } = useSelector(
+        (state) => state.department
+    );
+    // Banda gareko department nadekhaune
+    const departments = allDepartments.filter((department) => department.isActive !== false);
 
     useEffect(() => {
         dispatch(getDepartments());
     }, [dispatch]);
 
-    const contacts = [
-        {
-            id: 1,
-            title: "Nepal Police",
-            number: "100",
-            icon: <MdLocalPolice size={40} />,
-            color: "bg-blue-100 text-blue-600",
-        },
-        {
-            id: 2,
-            title: "Fire Brigade",
-            number: "101",
-            icon: <FaGripfire size={40} />,
-            color: "bg-red-100 text-red-600",
-        },
-        {
-            id: 3,
-            title: "Ambulance",
-            number: "102",
-            icon: <MdLocalHospital size={40} />,
-            color: "bg-green-100 text-green-600",
-        },
-
-        ...departments.map((department) => ({
-            id: department._id,
-            title: department.name,
-            number: department.phone,
-            icon: department.name.toLowerCase().includes("water") ? (
-                <FaTint size={36} />
-            ) : (
-                <FaBolt size={36} />
-            ),
-            color: department.name.toLowerCase().includes("water") ? "bg-cyan-100 text-cyan-600" : "bg-yellow-100 text-yellow-600",
-        }))
-    ];
-
-    if (loading) {
-        return <LoadingSpinner />
-    }
-
     return (
-        <section className="py-20 bg-white">
-            <div className="max-w-7xl mx-auto px-8 ">
+        <section id="emergency-contacts" className="bg-white py-20">
+            <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
-                {/* Heading */}
-                <div className="text-center mb-12">
-                    <h2 className="text-4xl font-bold text-gray-800">
-                        Emergency Contacts
-                    </h2>
+                <SectionHeading
+                    label={t("emergency.contacts.label")}
+                    title={t("emergency.contacts.title")}
+                    description={t("emergency.contacts.description")}
+                />
 
-                    <p className="text-gray-500 mt-3 mac-w-2xl mx-auto">
-                        Contact the appropriate emergency service immediately during
-                        critical situations. These services are available 24/7.
-                    </p>
-                </div>
-
-                {/* Cards */}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-
-                    {contacts.map((contact) => (
-                        <div
-                            key={contact.id}
-                            className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition duration-300 p-6"
+                {/* National hotlines */}
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                    {hotlines.map(({ key, number, icon: Icon }) => (
+                        <a
+                            key={number}
+                            href={`tel:${number}`}
+                            className="group flex items-center gap-4 rounded-2xl border border-slate-200 border-l-4 border-l-[#dc143c] bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
                         >
-                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${contact.color}`}>
-                                {contact.icon}
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#dc143c]/10 text-2xl text-[#dc143c] transition group-hover:bg-[#dc143c] group-hover:text-white">
+                                <Icon />
                             </div>
 
-                            <h3 className="text-xl font-semibold mt-6 text-gray-800">
-                                {contact.title}
-                            </h3>
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm text-slate-500">
+                                    {t(`emergency.contacts.hotlines.${key}`)}
+                                </p>
 
-                            <p className="text-2xl font-bold text-gray-900 mt-3">
-                                {contact.number}
-                            </p>
+                                <p className="text-3xl font-bold tracking-wide text-[#003893]">
+                                    {number}
+                                </p>
+                            </div>
 
-                            <span className="inline-block mt-3 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-                                24/7 Available
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#dc143c] text-white transition group-hover:scale-110 group-hover:bg-[#b51031]">
+                                <FaPhoneAlt className="text-sm" />
                             </span>
-
-                            <a
-                                href={`tel:${contact.number}`}
-                                className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white rounded-xl py-3 flex items-center justify-center gap-2 transition"
-                            >
-                                <FaPhoneAlt />
-                                Call Now
-                            </a>
-                        </div>
+                        </a>
                     ))}
                 </div>
+
+                {/* Municipality departments */}
+                <div className="mt-16">
+                    <h3 className="text-xl font-bold text-slate-900">
+                        {t("emergency.contacts.departmentsTitle")}
+                    </h3>
+
+                    <p className="mt-1 text-sm text-slate-500">
+                        {t("emergency.contacts.departmentsText")}
+                    </p>
+
+                    {loading ? (
+                        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {[1, 2, 3].map((item) => (
+                                <div
+                                    key={item}
+                                    className="h-24 animate-pulse rounded-2xl bg-slate-100"
+                                />
+                            ))}
+                        </div>
+                    ) : departments.length === 0 ? (
+                        <p className="mt-6 rounded-xl border border-dashed border-slate-300 py-8 text-center text-slate-500">
+                            {t("emergency.contacts.noDepartments")}
+                        </p>
+                    ) : (
+                        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {departments.map((department) => {
+                                const Icon = departmentIcon(department.name);
+
+                                return (
+                                    <div
+                                        key={department._id}
+                                        className="flex min-w-0 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-lg"
+                                    >
+                                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#003893]/10 text-xl text-[#003893]">
+                                            <Icon />
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                            <p className="line-clamp-2 font-semibold leading-snug text-slate-800">
+                                                {department.name}
+                                            </p>
+
+                                            <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-slate-500">
+                                                <FaMapMarkerAlt className="shrink-0 text-[#dc143c]" />
+                                                <span className="truncate">{serviceAreaText(department.serviceArea, t, isEn)}</span>
+                                            </p>
+
+                                            <p className="text-sm text-slate-500">
+                                                {department.phone || t("emergency.contacts.phoneNotAvailable")}
+                                            </p>
+                                        </div>
+
+                                        {department.phone && (
+                                            <a
+                                                href={`tel:${department.phone}`}
+                                                className="shrink-0 whitespace-nowrap rounded-lg border border-[#003893] px-4 py-2 text-sm font-medium text-[#003893] transition hover:bg-[#003893] hover:text-white"
+                                            >
+                                                {t("emergency.contacts.call")}
+                                            </a>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
             </div>
-
         </section>
-    )
-}
+    );
+};
 
-export default EmergencyContacts
+export default EmergencyContacts;

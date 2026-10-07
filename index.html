@@ -1,12 +1,69 @@
 <!doctype html>
-<html lang="en">
+<html lang="ne">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart City Portal</title>
+
+    <!-- Default SEO (har page ma React ko SeoManager le badalchha) -->
+    <title>स्मार्ट सिटी सेवा पोर्टल — अनलाइन गुनासो, सूचना र आपतकालीन सहायता</title>
+    <meta name="description" content="अनलाइन गुनासो दर्ता र ट्र्याक गर्नुहोस्, सूचना तथा कार्यक्रम हेर्नुहोस् र आपतकालीन सहायता पाउनुहोस्। Smart City Service Portal — file complaints, read notices and get emergency help in Nepal." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#003893" />
+    <meta name="application-name" content="Smart City Service Portal" />
+    <meta name="format-detection" content="telephone=yes" />
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Facebook / WhatsApp / LinkedIn -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="स्मार्ट सिटी सेवा पोर्टल" />
+    <meta property="og:title" content="स्मार्ट सिटी सेवा पोर्टल — अनलाइन गुनासो, सूचना र आपतकालीन सहायता" />
+    <meta property="og:description" content="गुनासो दर्ता र ट्र्याक, ताजा सूचना, बोलपत्र र कार्यक्रम, आपतकालीन नम्बर र नजिकका अस्पताल एकै ठाउँमा।" />
+    <meta property="og:image" content="__SITE_URL__/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="स्मार्ट सिटी सेवा पोर्टल" />
+    <meta property="og:locale" content="ne_NP" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- X / Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="स्मार्ट सिटी सेवा पोर्टल" />
+    <meta name="twitter:description" content="अनलाइन गुनासो, सूचना, कार्यक्रम र आपतकालीन सहायता एकै ठाउँमा।" />
+    <meta name="twitter:image" content="__SITE_URL__/og-image.jpg" />
+
+    <!-- Google: site ko naam ra sanstha -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "स्मार्ट सिटी सेवा पोर्टल",
+            "alternateName": "Smart City Service Portal",
+            "url": "__SITE_URL__/",
+            "inLanguage": ["ne", "en"]
+          },
+          {
+            "@type": "Organization",
+            "name": "Smart City Service Portal",
+            "alternateName": "स्मार्ट सिटी सेवा पोर्टल",
+            "url": "__SITE_URL__/",
+            "logo": "__SITE_URL__/icon-512.png",
+            "contactPoint": [
+              { "@type": "ContactPoint", "telephone": "100", "contactType": "emergency", "areaServed": "NP" }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
+    <noscript>
+      स्मार्ट सिटी सेवा पोर्टल प्रयोग गर्न JavaScript खुला गर्नुहोस्। Please enable JavaScript to use the Smart City Service Portal.
+      आपतकालमा: प्रहरी 100, दमकल 101, एम्बुलेन्स 102।
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

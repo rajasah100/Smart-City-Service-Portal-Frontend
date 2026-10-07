@@ -1,4 +1,9 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
+import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify"
+import { FaArrowLeft, FaArrowRight, FaCheckCircle, FaExclamationTriangle, FaPaperPlane, FaRobot } from "react-icons/fa";
 import Header from "../components/complaint/Header"
 import Stepper from "../components/complaint/Stepper"
 import CitizenInfo from "../components/complaint/CitizenInfo"
@@ -7,41 +12,66 @@ import CategoryStep from "../components/complaint/CategoryStep"
 import ComplaintDetails from "../components/complaint/ComplaintDetails"
 import LocationStep from "../components/complaint/LocationStep"
 import ReviewStep from "../components/complaint/ReviewStep"
-import { useDispatch, useSelector } from "react-redux";
 import { createComplaint } from "../redux/slices/complaintSlice"
-import { toast } from "react-toastify"
-import { useEffect } from "react"
-// import { Navigate } from "react-router-dom"
+import { clearComplaintData } from "../redux/slices/aiSlice"
+import { coversLocation } from "../utils/serviceArea"
 
+// Sthan pahile: tyo thau herne department matra dekhauna
+const STEP_KEYS = ["citizen", "location", "department", "details", "review"];
 
-const STEPS = [
-  "Citizen Info",
-  "Category",
-  "Details",
-  "Location",
-  "Review",
-]
+const emptyForm = (userInfo) => ({
+  // Citizen
+  fullName: userInfo?.name || "",
+  phone: userInfo?.phone || "",
+  email: userInfo?.email || "",
+
+  // Complaint
+  department: "",
+  title: "",
+  description: "",
+  priority: "medium",
+
+  // Image
+  images: [],
+
+  // Location
+  province: "",
+  district: "",
+  municipality: "",
+  ward: "",
+  tole: "",
+
+  latitude: "",
+  longitude: "",
+  // Pin kun palika ma parchha (naksa bata, submit hudaina)
+  pinMunicipality: "",
+  // Naksa le aafai bhareko tol
+  autoTole: "",
+
+  // Swaghoshana
+  agree: false,
+});
 
 const ComplaintPage = () => {
-
   const dispatch = useDispatch();
+  const { t } = useTranslation();
 
-
-  const { loading } = useSelector(
-    (state) => state.complaint
-  );
+  const { loading } = useSelector((state) => state.complaint);
+  const { userInfo } = useSelector((state) => state.auth);
+  const { departments = [] } = useSelector((state) => state.department);
+  const { complaintData } = useSelector((state) => state.ai);
 
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submittedData, setSubmittedData] = useState(null);
 
-  const { userInfo } = useSelector((state) => state.auth);
+  const [formData, setFormData] = useState(() => emptyForm(userInfo));
 
-  const { complaintData } = useSelector((state) => state.ai);
+  // AI chat le bhareko data form ma halne (naya data aauda matra, render bela nai)
+  const [appliedAiData, setAppliedAiData] = useState(null);
 
-  useEffect(() => {
-    if (!complaintData) return;
-
+  if (complaintData && complaintData !== appliedAiData) {
+    setAppliedAiData(complaintData);
     setFormData((prev) => ({
       ...prev,
 
@@ -55,188 +85,104 @@ const ComplaintPage = () => {
       municipality: complaintData.municipality || prev.municipality,
       ward: complaintData.ward || prev.ward,
       tole: complaintData.tole || prev.tole,
-    }))
-  }, [complaintData]);
+    }));
+  }
 
-  const [formData, setFormData] = useState({
-    // Citizen
-    fullName: userInfo?.name || "",
-    phone: userInfo?.phone || "",
-    email: userInfo?.email || "",
+  // Step badlida form ko mathi lagne
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step, submitted]);
 
-    // Complaint
-    department: "",
-    title: "",
-    description: "",
-    priority: "medium",
+  const steps = STEP_KEYS.map((key) => t(`complaintForm.steps.${key}`));
 
-    // Image
-    images: [],
+  // Pahilo galti ko message key (galti chaina bhane null)
+  const firstError = () => {
+    const v = (key) => `complaintForm.validation.${key}`;
 
-    // Location
-    province: "",
-    district: "",
-    municipality: "",
-    ward: "",
-    tole: "",
-
-    latitude: "",
-    longitude: "",
-  })
-
-
-  const validateStep = () => {
-    switch (step) {
-      // Citizen Information
-      case 0: {
-        if (!formData.fullName.trim()) {
-          toast.error("Please enter your full name.");
-          return false;
-        }
-
-        if (formData.fullName.trim().length < 3) {
-          toast.error("Full name must be at least 3 characters.");
-          return false;
-        }
-
-        if (!formData.phone.trim()) {
-          toast.error("Please enter your phone number.");
-          return false;
-        }
-
-        // Nepali mobile validation
-        if (!/^9[678]\d{8}$/.test(formData.phone.trim())) {
-          toast.error("Please enter a valid Nepali mobile number.");
-          return false;
-        }
-
-        if (!formData.email.trim()) {
-          toast.error("Please enter your email.");
-          return false;
-        }
-
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-        if (!emailRegex.test(formData.email)) {
-          toast.error("Please enter a valid email address.");
-          return false;
-        }
-
-        break;
+    switch (STEP_KEYS[step]) {
+      case "citizen": {
+        if (!formData.fullName.trim()) return v("nameRequired");
+        if (formData.fullName.trim().length < 3) return v("nameShort");
+        if (!formData.phone.trim()) return v("phoneRequired");
+        if (!/^9[678]\d{8}$/.test(formData.phone.trim())) return v("phoneInvalid");
+        if (!formData.email.trim()) return v("emailRequired");
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return v("emailInvalid");
+        return null;
       }
 
-      // Department
-      case 1:
-        if (!formData.department) {
-          toast.error("Please select a department.");
-          return false;
-        }
-        break;
+      case "department": {
+        const department = departments.find((dept) => dept._id === formData.department);
+        // Pachhi sthan badleko bhae purano department yo thau herdaina hola
+        return department && coversLocation(department.serviceArea, formData) ? null : v("department");
+      }
 
-      // Complaint Details
-      case 2:
-        if (!formData.title.trim()) {
-          toast.error("Please enter complaint title.");
-          return false;
-        }
+      case "details":
+        if (!formData.title.trim()) return v("titleRequired");
+        if (formData.title.trim().length < 5) return v("titleShort");
+        if (!formData.description.trim()) return v("descriptionRequired");
+        if (formData.description.trim().length < 20) return v("descriptionShort");
+        if (formData.images.length === 0) return v("imageRequired");
+        if (formData.images.length > 5) return v("imageMax");
+        return null;
 
-        if (formData.title.trim().length < 5) {
-          toast.error("Complaint title must be at least 5 characters.");
-          return false;
-        }
+      case "location":
+        if (!formData.province) return v("province");
+        if (!formData.district) return v("district");
+        if (!formData.municipality) return v("municipality");
+        if (!formData.ward) return v("ward");
+        if (!formData.tole.trim()) return v("tole");
+        if (!formData.latitude || !formData.longitude) return v("map");
+        return null;
 
-        if (!formData.description.trim()) {
-          toast.error("Please enter complaint description.");
-          return false;
-        }
-
-        if (formData.description.trim().length < 20) {
-          toast.error(
-            "Complaint description must be at least 20 characters."
-          );
-          return false;
-        }
-
-        if (formData.images.length === 0) {
-          toast.error("Please upload at least one image.");
-          return false;
-        }
-
-        if (formData.images.length > 5) {
-          toast.error("Maximum 5 images are allowed.");
-          return false;
-        }
-
-        break;
-
-      // Location
-      case 3:
-        if (!formData.province) {
-          toast.error("Please select province.");
-          return false;
-        }
-
-        if (!formData.district) {
-          toast.error("Please select district.");
-          return false;
-        }
-
-        if (!formData.municipality) {
-          toast.error("Please select municipality.");
-          return false;
-        }
-
-        if (!formData.ward) {
-          toast.error("Please enter ward.");
-          return false;
-        }
-
-        if (!formData.tole.trim()) {
-          toast.error("Please enter your tole.");
-          return false;
-        }
-
-        if (!formData.latitude || !formData.longitude) {
-          toast.error("Please select your location on the map.");
-          return false;
-        }
-
-        break;
+      case "review":
+        return formData.agree ? null : "complaintForm.review.declarationRequired";
 
       default:
-        return true;
+        return null;
+    }
+  };
+
+  const validateStep = () => {
+    const error = firstError();
+
+    if (error) {
+      toast.error(t(error));
+      return false;
     }
 
     return true;
   };
 
-
   const nextStep = () => {
     if (!validateStep()) return;
-
-    if (step < STEPS.length - 1) {
-      setStep(step + 1);
-    }
+    if (step < STEP_KEYS.length - 1) setStep(step + 1);
   };
 
   const prevStep = () => {
-    if (step > 0) {
-      setStep(step - 1);
-    }
+    if (step > 0) setStep(step - 1);
+  };
+
+  // Review bata section sampadan: pachhadi matra jana milcha
+  const goToStep = (index) => {
+    if (index < step) setStep(index);
+  };
+
+  // "Arko gunaso": form khali gari pahilo step
+  const startNew = () => {
+    formData.images.forEach((image) => URL.revokeObjectURL(image.preview));
+    setFormData(emptyForm(userInfo));
+    dispatch(clearComplaintData());
+    setSubmittedData(null);
+    setSubmitted(false);
+    setStep(0);
   };
 
   const updateField = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
-
-
 
   const handleSubmit = async () => {
     if (!validateStep()) return;
-
 
     try {
       const submitData = new FormData();
@@ -262,161 +208,134 @@ const ComplaintPage = () => {
         submitData.append("images", image.file);
       })
 
-      for (let pair of submitData.entries()) {
-        console.log(pair[0], pair[1]);
-      }
-
       const result = await dispatch(createComplaint(submitData)).unwrap();
 
       setSubmittedData(result);
-
-      toast.success("Complaint Submitted successfully 🎉");
+      // AI ko draft pheri form ma nabharos
+      dispatch(clearComplaintData());
+      toast.success(t("complaintForm.submitted"));
 
       setTimeout(() => {
         setSubmitted(true);
       }, 800);
-
     } catch (error) {
-      toast.error(error?.message || "Failed to submit complaint.");
-      console.error(error);
+      toast.error(error?.message || t("complaintForm.submitFailed"));
     }
   }
 
   if (submitted) {
-    return <SuccessPage data={submittedData} />
+    return <SuccessPage data={submittedData} onNewComplaint={startNew} />
   }
 
+  const isLast = step === STEP_KEYS.length - 1;
+  const aiDepartment = departments.find(
+    (dept) => dept._id === formData.department || dept.name === formData.department
+  );
+
   return (
-    <div className="min-h-screen ">
+    <div className="min-h-screen bg-slate-100 pb-16">
       <Header />
 
-      <div className="max-w-7xl mx-auto py-8 px-4">
-        <Stepper
-          steps={STEPS}
-          currentStep={step}
-        />
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 pt-8 sm:px-6 lg:grid-cols-3 lg:px-8">
 
-        {complaintData && (
-          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
-            <h3 className="text-lg font-semibold text-[#0f4c81]">
-              🤖 AI Complaint Assistant
-            </h3>
+        {/* ===== Form ===== */}
+        <div className="space-y-6 lg:col-span-2">
+          <Stepper steps={steps} currentStep={step} />
 
-            <p className="mt-2 text-sm">
-              Your complaint information has been collected by AI.
-            </p>
-
-            <div className="mt-4 space-y-2 text-sm">
-
-              <p><strong>Department:</strong> {formData.department}</p>
-
-              <p><strong>Priority:</strong> {formData.priority}</p>
-
-              <p>
-                <strong>Location:</strong>{" "}
-                {formData.province},
-                {formData.district},
-                {formData.municipality},
-                Ward {formData.ward}
-              </p>
-
-            </div>
-
+          {/* key={step}: step badlida halka animation */}
+          <div key={step} className="animate-fade-up rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+            {step === 0 && <CitizenInfo data={formData} updateField={updateField} />}
+            {step === 1 && <LocationStep data={formData} updateField={updateField} />}
+            {step === 2 && <CategoryStep data={formData} updateField={updateField} />}
+            {step === 3 && <ComplaintDetails data={formData} updateField={updateField} />}
+            {step === 4 && <ReviewStep data={formData} updateField={updateField} goToStep={goToStep} />}
           </div>
-        )}
 
-        <div className="bg-white rounded-xl shadow-md mt-8 p-8">
-          {step === 0 && (
-            <CitizenInfo
-              data={formData}
-              updateField={updateField}
-            />
-          )}
+          {/* Navigation */}
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={prevStep}
+              disabled={step === 0}
+              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <FaArrowLeft className="text-xs" />
+              {t("complaintForm.previous")}
+            </button>
 
-          {step === 1 && (
-            <CategoryStep
-              data={formData}
-              updateField={updateField}
-            />
-          )}
-
-          {step === 2 && (
-            <ComplaintDetails
-              data={formData}
-              updateField={updateField}
-            />
-          )}
-          {step === 3 && (
-            <LocationStep
-              data={formData}
-              updateField={updateField}
-            />
-          )}
-          {step === 4 && (
-            <ReviewStep
-              data={formData}
-              updateField={updateField}
-            />
-          )}
+            {isLast ? (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading}
+                aria-disabled={!formData.agree}
+                className={`flex items-center gap-2 rounded-xl bg-[#dc143c] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#b51031] disabled:cursor-not-allowed disabled:opacity-60 ${formData.agree ? "" : "opacity-60"}`}
+              >
+                {loading ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <FaPaperPlane />
+                )}
+                {loading ? t("complaintForm.submitting") : t("complaintForm.submit")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={nextStep}
+                className="group flex items-center gap-2 rounded-xl bg-[#003893] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#002a6e]"
+              >
+                {t("complaintForm.next")}
+                <FaArrowRight className="text-xs transition group-hover:translate-x-1" />
+              </button>
+            )}
+          </div>
         </div>
 
-
-        <div className="flex justify-between mt-10">
-          <button
-            onClick={prevStep}
-            disabled={step === 0}
-            className="px-6 py-3 rounded-lg border disabled:opacity-40 cursor-pointer"
-          >
-            Previous
-          </button>
-
-          {step === STEPS.length - 1 ? (
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="bg-[#0f4c81] text-white px-6 py-3 rounded-lg hover:bg-[#0c416f] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg
-                    className="animate-spin h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      opacity="0.2"
-                    />
-                    <path
-                      d="M22 12a10 10 0 0 1-10 10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                  </svg>
-
-                  Submitting...
-                </>
-              ) : (
-                "Submit Complaint"
-              )}
-            </button>
-          ) : (
-            <button
-              onClick={nextStep}
-              className="border bg-[#0f4c81] border-[#0f4c81] text-white hover:bg-[#0c416f]  px-6 py-3 rounded-lg cursor-pointer"
-            >
-              Next
-            </button>
+        {/* ===== Sidebar ===== */}
+        <aside className="space-y-4 lg:sticky lg:top-28 lg:self-start">
+          {complaintData && (
+            <div className="animate-fade-up rounded-2xl border border-[#003893]/20 bg-[#003893]/5 p-5">
+              <h3 className="flex items-center gap-2 font-semibold text-[#003893]">
+                <FaRobot />
+                {t("complaintForm.ai.title")}
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">{t("complaintForm.ai.text")}</p>
+              <dl className="mt-3 space-y-1 text-sm">
+                <div><dt className="inline font-medium">{t("complaintForm.ai.department")}: </dt><dd className="inline">{aiDepartment?.name || complaintData.departmentName || "-"}</dd></div>
+                <div><dt className="inline font-medium">{t("complaintForm.ai.priority")}: </dt><dd className="inline">{t(`userDash.priority.${formData.priority}`, { defaultValue: formData.priority })}</dd></div>
+                <div>
+                  <dt className="inline font-medium">{t("complaintForm.ai.location")}: </dt>
+                  <dd className="inline">{[formData.municipality, formData.district, formData.ward && `${t("userPages.detail.ward")} ${formData.ward}`].filter(Boolean).join(", ") || "-"}</dd>
+                </div>
+              </dl>
+            </div>
           )}
-        </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="font-bold text-slate-900">{t("complaintForm.help.title")}</h3>
+            <ul className="mt-3 space-y-2.5">
+              {(t("complaintForm.help.tips", { returnObjects: true }) || []).map((tip) => (
+                <li key={tip} className="flex gap-2 text-sm leading-6 text-slate-600">
+                  <FaCheckCircle className="mt-1 shrink-0 text-green-600" />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+            <p className="flex gap-2 text-sm font-medium text-[#dc143c]">
+              <FaExclamationTriangle className="mt-0.5 shrink-0" />
+              {t("complaintForm.help.emergency")}
+            </p>
+            <Link to="/emergency" className="mt-2 inline-block text-sm font-semibold text-[#dc143c] underline">
+              {t("complaintForm.help.emergencyLink")}
+            </Link>
+          </div>
+        </aside>
       </div>
-    </div >
+    </div>
   )
 }
 
 export default ComplaintPage
-

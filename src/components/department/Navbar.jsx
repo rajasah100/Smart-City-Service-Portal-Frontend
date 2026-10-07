@@ -1,210 +1,186 @@
-import { LuBell, LuBellOff } from "react-icons/lu"
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
+import { LuBell, LuBellOff, LuCalendarDays, LuCheckCheck, LuMenu } from "react-icons/lu";
 import { getDepartmentProfile } from "../../redux/slices/departmentSlice";
-import { useState } from "react";
-import { useRef } from "react";
-import { useNavigate } from "react-router-dom"
-import { getDepartmentNotifications, markAllDepartmentNotificationsRead } from "../../redux/slices/departmentNotificationSlice";
-import { formatDistanceToNow } from "date-fns"
+import {
+    getDepartmentNotifications,
+    markAllDepartmentNotificationsRead,
+    markDepartmentNotificationRead,
+} from "../../redux/slices/departmentNotificationSlice";
+import LanguageSwitcher from "../common/LanguageSwitcher";
+import { formatBS } from "../../utils/nepaliDate";
+import { currentMenu } from "./deptMenu";
+import { PRIORITY_STYLE, initials } from "./deptUtils";
 
-
-
-const Navbar = () => {
-    const [notificationOpen, setNotificationOpen] = useState(false);
-    const notificationRef = useRef(null);
-    const navigate = useNavigate();
+// Department ko mathi ko bar: page ko shirshak, miti, bhasha, notification
+const Navbar = ({ onMenu }) => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
+    const num = (n) => Number(n).toLocaleString(isEn ? "en-US" : "ne-NP");
+
+    const [open, setOpen] = useState(false);
+    const panelRef = useRef(null);
 
     const { department } = useSelector((state) => state.department);
+    const { notifications = [], unreadCount } = useSelector((state) => state.departmentNotification);
+    const menu = currentMenu(pathname);
 
-    const { notifications, unreadCount } = useSelector((state) => state.departmentNotification);
-
+    // Profile sadhai taja (login ko data ma sewa kshetra hudaina), notification pani
     useEffect(() => {
-        if (!department) {
-            dispatch(getDepartmentProfile());
-        }
-
+        dispatch(getDepartmentProfile());
         dispatch(getDepartmentNotifications());
-    }, [dispatch, department]);
+    }, [dispatch]);
 
     useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (
-                notificationRef.current &&
-                !notificationRef.current.contains(e.target)
-            ) {
-                setNotificationOpen(false);
-            }
+        const close = (e) => {
+            if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
         };
-
-        document.addEventListener("mousedown", handleClickOutside);
-
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+        document.addEventListener("mousedown", close);
+        return () => document.removeEventListener("mousedown", close);
     }, []);
 
+    const openNotification = (item) => {
+        setOpen(false);
+        if (!item.isRead) dispatch(markDepartmentNotificationRead(item._id));
+        if (item.complaint?._id) navigate(`/department/complaints?open=${item.complaint._id}`);
+    };
+
     return (
-        <header className="sticky top-0 z-30 bg-white border-b border-slate-200 h-20 flex items-center justify-between px-3 sm:px-6">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur print:hidden">
+            <div className="flex h-18 items-center gap-3 px-4 sm:px-6">
+                <button
+                    type="button"
+                    onClick={onMenu}
+                    aria-label={t("deptDash.openMenu")}
+                    className="rounded-xl p-2 text-[#003893] hover:bg-slate-100 lg:hidden"
+                >
+                    <LuMenu size={22} />
+                </button>
 
-            {/* left */}
-            <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-bold text-[#10151c]">
-                    Department Dashboard
-                </h1>
+                <div className="min-w-0 flex-1">
+                    <h1 className="truncate text-lg font-bold text-slate-900 sm:text-xl">{t(`deptDash.titles.${menu.titleKey}.title`)}</h1>
+                    <p className="hidden truncate text-sm text-slate-500 sm:block">{t(`deptDash.titles.${menu.titleKey}.text`)}</p>
+                </div>
 
-                <p className="text-sm text-slate-500 mt-1">
-                    Welcome back! Manage complaints efficently
-                </p>
-            </div>
+                <span className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 xl:flex">
+                    <LuCalendarDays className="text-[#003893]" />
+                    {formatBS(new Date(), isEn, "YYYY MMMM DD, ddd")}
+                </span>
 
-            {/* Right */}
-            <div className="flex items-center gap-5">
-
-               
-               
+                <div className="hidden sm:block">
+                    <LanguageSwitcher variant="light" />
+                </div>
 
                 {/* Notification */}
-                <div className="relative" ref={notificationRef}>
+                <div className="relative" ref={panelRef}>
                     <button
-                        onClick={() => setNotificationOpen(!notificationOpen)}
-                        className="relative w-11 h-11 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer"
+                        type="button"
+                        onClick={() => setOpen((value) => !value)}
+                        aria-label={t("deptDash.notifications.title")}
+                        aria-expanded={open}
+                        className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 transition hover:bg-[#003893]/10 hover:text-[#003893]"
                     >
-                        <LuBell size={20} />
-
+                        <LuBell size={19} />
                         {unreadCount > 0 && (
-                            <span className="absolute -top-1 -right-1 min-w-4.5 h-4.5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1">
-                                {unreadCount}
+                            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#dc143c] px-1 text-[10px] font-bold text-white ring-2 ring-white">
+                                {unreadCount > 9 ? "9+" : num(unreadCount)}
                             </span>
                         )}
                     </button>
 
-                    {notificationOpen && (
-                        <div
-                            className="fixed top-20 left-4 right-4 sm:absolute sm:top-14 sm:right-0 sm:left-auto sm:w-105 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-9999"
-                        >
-
-                            {/* Header */}
-                            <div className="px-5 py-4 border-b flex items-center justify-between">
+                    {open && (
+                        <div className="dropdown-in fixed left-3 right-3 top-20 z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96">
+                            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
                                 <div>
-                                    <h3 className="font-bold text-lg">
-                                        Department Notifications
-                                    </h3>
-
-                                    <p className="text-sm text-slate-500">
-                                        {unreadCount} unread notification
-                                        {unreadCount !== 1 && "s"}
-                                    </p>
+                                    <p className="font-bold text-slate-900">{t("deptDash.notifications.title")}</p>
+                                    <p className="text-xs text-slate-500">{t("deptDash.notifications.unread", { count: num(unreadCount) })}</p>
                                 </div>
-
-
+                                {unreadCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => dispatch(markAllDepartmentNotificationsRead())}
+                                        className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-[#003893] hover:bg-[#003893]/10"
+                                    >
+                                        <LuCheckCheck />
+                                        {t("deptDash.notifications.markAll")}
+                                    </button>
+                                )}
                             </div>
 
-                            {/* Body */}
-                            <div className="max-h-105 overflow-y-auto">
-
+                            <div className="max-h-96 overflow-y-auto">
                                 {notifications.length === 0 ? (
-                                    <div className="py-14 flex flex-col items-center">
-                                        <LuBellOff
-                                            size={45}
-                                            className="text-slate-300"
-                                        />
-
-                                        <p className="mt-3 text-slate-500">
-                                            No notifications
-                                        </p>
+                                    <div className="flex flex-col items-center py-12 text-slate-400">
+                                        <LuBellOff size={36} />
+                                        <p className="mt-2 text-sm">{t("deptDash.notifications.empty")}</p>
                                     </div>
                                 ) : (
-                                    notifications.slice(0, 4).map((item) => (
-                                        <div
+                                    notifications.slice(0, 8).map((item, index) => (
+                                        <button
                                             key={item._id}
-                                            onClick={() => {
-                                                setNotificationOpen(false);
-                                            }}
-                                            className={`cursor-pointer p-4 border-b transition ${!item.isRead
-                                                ? "bg-blue-50 border-l-4 border-blue-500"
-                                                : "hover:bg-slate-50"
-                                                }`}
+                                            type="button"
+                                            onClick={() => openNotification(item)}
+                                            style={{ "--delay": `${index * 30}ms` }}
+                                            className={`dropdown-item-in flex w-full gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 ${
+                                                item.isRead ? "" : "bg-[#003893]/5"
+                                            }`}
                                         >
-                                            <div className="flex justify-between">
-
-                                                <div className="flex-1">
-                                                    <h4 className="font-semibold text-slate-800">
-                                                        {item.title}
-                                                    </h4>
-
-                                                    <p className="text-sm text-slate-600 mt-1">
-                                                        {item.message}
-                                                    </p>
-
-                                                    <div className="flex gap-2 mt-3">
-                                                        <span className="px-2 py-1 rounded-full bg-slate-100 text-xs font-medium">
-                                                            {item.complaint?.complaintId}
+                                            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${item.isRead ? "bg-transparent" : "bg-[#dc143c]"}`} />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-sm font-semibold text-slate-900">{item.complaint?.title || item.title}</span>
+                                                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                                                    {item.complaint?.complaintId && (
+                                                        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600">{item.complaint.complaintId}</span>
+                                                    )}
+                                                    {item.complaint?.priority && (
+                                                        <span className={`rounded px-1.5 py-0.5 font-medium ${PRIORITY_STYLE[item.complaint.priority]?.badge}`}>
+                                                            {t(`userDash.priority.${item.complaint.priority}`)}
                                                         </span>
-
-                                                        <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs capitalize">
-                                                            {item.complaint?.priority}
-                                                        </span>
-                                                    </div>
-
-                                                    <p className="text-xs text-slate-400 mt-3">
-                                                        {formatDistanceToNow(new Date(item.createdAt), {
-                                                            addSuffix: true,
-                                                        })}
-                                                    </p>
-                                                </div>
-
-                                                {!item.isRead && (
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 mt-2"></span>
-                                                )}
-                                            </div>
-                                        </div>
+                                                    )}
+                                                </span>
+                                                <span className="mt-1 block text-xs text-slate-400">{formatBS(item.createdAt, isEn, "MMMM DD")}</span>
+                                            </span>
+                                        </button>
                                     ))
                                 )}
                             </div>
 
-                            {/* Footer */}
-                            {notifications.length > 4 && (
-                                <div className="p-4 border-t bg-slate-50">
-                                    <button
-                                        onClick={async () => {
-                                            await dispatch(markAllDepartmentNotificationsRead());
-
-                                            setNotificationOpen(false);
-
-                                            navigate("/department/complaints");
-                                        }}
-                                        className="w-full py-3 text-[#0f4c81] font-semibold hover:bg-slate-50 border-t cursor-pointer"
-                                    >
-                                        View All Complaints
-                                    </button>
-                                </div>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOpen(false);
+                                    navigate("/department/complaints");
+                                }}
+                                className="w-full bg-slate-50 py-3 text-sm font-semibold text-[#003893] hover:bg-slate-100"
+                            >
+                                {t("deptDash.notifications.viewAll")}
+                            </button>
                         </div>
                     )}
                 </div>
 
-                {/* profile */}
-                <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full text-white bg-[#0f4c81] flex items-center justify-center font-bold text-lg uppercase">
-                        {department?.name?.split(" ").map((word) => word[0]).join("").slice(0, 2) || "DP"}
-                    </div>
-
-                    <div className="hidden md:block">
-                        <h4 className="font-semibold text-[#10151c]">
-                            {department?.name || "Department Admin"}
-                        </h4>
-
-                        <p className="text-sm text-slate-500">
-                            {department?.email || "Department"}
-                        </p>
-                    </div>
-                </div>
+                {/* Department */}
+                <button
+                    type="button"
+                    onClick={() => navigate("/department/profile")}
+                    className="flex items-center gap-2.5 rounded-xl p-1 transition hover:bg-slate-100"
+                    title={department?.name}
+                >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#003893] text-sm font-bold text-white">
+                        {initials(department?.name)}
+                    </span>
+                    <span className="hidden max-w-44 text-left md:block">
+                        <span className="block truncate text-sm font-semibold text-slate-900">{department?.name}</span>
+                        <span className="block truncate text-xs text-slate-500">{department?.email}</span>
+                    </span>
+                </button>
             </div>
-
         </header>
-    )
-}
+    );
+};
 
-export default Navbar
+export default Navbar;

@@ -25,7 +25,7 @@ const AdminNoticePage = () => {
   };
 
   return (
-    <div className="p-6">
+    <div>
 
       {/* Header */}
       <div className="mb-6">

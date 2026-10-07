@@ -1,8 +1,12 @@
 import { LuEye } from "react-icons/lu";
+import { useTranslation } from "react-i18next";
+import { PRIORITY_STYLE, STATUS_STYLE } from "../../department/deptUtils";
+import { formatBS } from "../../../utils/nepaliDate";
 
 import { FaUserCircle } from "react-icons/fa";
 
 const ComplaintTable = ({ complaints = [], loading, onView }) => {
+  const { t, i18n } = useTranslation();
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-20 text-center">
@@ -30,19 +34,19 @@ const ComplaintTable = ({ complaints = [], loading, onView }) => {
         <table className="min-w-full">
           <thead className="bg-slate-50">
             <tr className="text-left text-sm text-slate-600">
-              <th className="px-6 py-4">Complaint</th>
+              <th className="px-4 py-3.5">Complaint</th>
 
-              <th className="px-6 py-4">Citizen</th>
+              <th className="px-4 py-3.5">Citizen</th>
 
-              <th className="px-6 py-4">Department</th>
+              <th className="px-4 py-3.5">Department</th>
 
-              <th className="px-6 py-4">Priority</th>
+              <th className="px-4 py-3.5">Priority</th>
 
-              <th className="px-6 py-4">Status</th>
+              <th className="px-4 py-3.5">Status</th>
 
-              <th className="px-6 py-4">Date</th>
+              <th className="px-4 py-3.5">Date</th>
 
-              <th className="px-6 py-4 text-center">Action</th>
+              <th className="px-4 py-3.5 text-center">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -53,7 +57,7 @@ const ComplaintTable = ({ complaints = [], loading, onView }) => {
                   className="border-t hover:bg-slate-50 transition"
                 >
                   {/* Complaint */}
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3.5">
                     <div>
                       <h3 className="font-semibold text-slate-800">
                         {complaint.title}
@@ -66,7 +70,7 @@ const ComplaintTable = ({ complaints = [], loading, onView }) => {
                   </td>
 
                   {/* Citizen */}
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
                       {complaint.user?.avatar ? (
                         <img
@@ -78,11 +82,11 @@ const ComplaintTable = ({ complaints = [], loading, onView }) => {
                         <FaUserCircle size={38} className="text-slate-400" />
                       )}
 
-                      <div>
-                        <p className="font-medium text-slate-800">
+                      <div className="min-w-0">
+                        <p className="whitespace-nowrap font-medium text-slate-800">
                           {complaint.user?.name || "-"}
                         </p>
-                        <p className="text-sm text-slate-500">
+                        <p className="max-w-44 truncate text-xs text-slate-500" title={complaint.user?.email}>
                           {complaint.user?.email || ""}
                         </p>
                       </div>
@@ -90,59 +94,33 @@ const ComplaintTable = ({ complaints = [], loading, onView }) => {
                   </td>
 
                   {/* Department */}
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3.5">
                     {complaint.department?.name || "-"}
                   </td>
 
                   {/* Priority */}
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold
-                                                
-                                                ${
-                                                  complaint.priority ===
-                                                  "urgent"
-                                                    ? "bg-red-100 text-red-600"
-                                                    : complaint.priority ===
-                                                        "important"
-                                                      ? "bg-orange-100 text-orange-600"
-                                                      : "bg-green-100 text-green-600"
-                                                }
-                                                `}
-                    >
-                      {complaint.priority || "normal"}
+                  <td className="px-4 py-3.5">
+                    <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${PRIORITY_STYLE[complaint.priority]?.badge || "bg-slate-100 text-slate-700"}`}>
+                      {t(`userDash.priority.${complaint.priority}`, { defaultValue: complaint.priority })}
                     </span>
                   </td>
 
                   {/* Status */}
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold
-
-                                                ${
-                                                  complaint.status ===
-                                                  "resolved"
-                                                    ? "bg-green-100 text-green-600"
-                                                    : complaint.status ===
-                                                        "in-progress"
-                                                      ? "bg-blue-100 text-blue-600"
-                                                      : "bg-yellow-100 text-yellow-600"
-                                                }
-                                                `}
-                    >
-                      {complaint.status}
+                  <td className="px-4 py-3.5">
+                    <span className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ring-1 ${STATUS_STYLE[complaint.status]?.badge || "bg-slate-100 text-slate-700 ring-slate-200"}`}>
+                      {t(`userDash.status.${complaint.status}`, { defaultValue: complaint.status })}
                     </span>
                   </td>
 
                   {/* Date */}
-                  <td className="px-6 py-4">
+                  <td className="whitespace-nowrap px-4 py-3.5 text-sm">
                     {complaint.createdAt
-                      ? new Date(complaint.createdAt).toLocaleDateString()
+                      ? formatBS(complaint.createdAt, i18n.resolvedLanguage === "en", "YYYY MMMM DD")
                       : "-"}
                   </td>
 
                   {/* Action */}
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3.5">
                     <div className="flex justify-center gap-2">
                       <button
                         onClick={() => onView(complaint)}

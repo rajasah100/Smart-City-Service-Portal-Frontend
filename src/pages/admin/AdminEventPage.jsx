@@ -55,7 +55,7 @@ const AdminEventPage = () => {
 
 
     return (
-        <div className="p-6">
+        <div>
 
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
@@ -248,7 +248,7 @@ const AdminEventPage = () => {
 
 
 
-                                            {event.status !== "cancelled" && (
+                                            {event.status !== "cancelled" && event.status !== "completed" && (
 
                                                 <button
                                                     onClick={() => handleCancel(event._id)}

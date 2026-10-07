@@ -1,195 +1,168 @@
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { QRCodeSVG } from "qrcode.react";
+import { FaCheck, FaHome, FaPrint, FaRedo, FaSearch } from "react-icons/fa";
+import useSiteSettings from "../../hooks/useSiteSettings";
+import { formatBS } from "../../utils/nepaliDate";
+import { localizePlace } from "../../data/nepalLocation";
+import defaultLogo from "../../assets/logo-small.png";
 
-import { FaCalendarDay, FaCheckCircle, FaHashtag, FaPrint } from "react-icons/fa"
-import { FiRotateCcw } from "react-icons/fi";
+const Row = ({ label, children }) => (
+    <tr className="border-b border-slate-200 last:border-b-0">
+        <th scope="row" className="w-36 py-2.5 pr-4 text-left align-top text-sm font-medium text-slate-500 sm:w-44">{label}</th>
+        <td className="py-2.5 text-sm font-semibold text-slate-900">{children || "-"}</td>
+    </tr>
+);
 
+// Gunaso pathaepachhi: sarkari dhaanchako "गुनासो दर्ता निस्सा" (print garna milne)
+const SuccessPage = ({ data, onNewComplaint }) => {
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
+    const settings = useSiteSettings();
+    const num = (n) => Number(n).toLocaleString(isEn ? "en-US" : "ne-NP");
 
-const SuccessPage = ({ data }) => {
-  const trackingId = data?.complaintId;
+    if (!data) return null;
 
-  const handlePrint = () => {
-    window.print();
-  }
+    const trackUrl = `${window.location.origin}/user/complaints/${encodeURIComponent(data.complaintId)}`;
+    const createdAt = data.createdAt || new Date();
+    const time = new Date(createdAt).toLocaleTimeString(isEn ? "en-US" : "ne-NP", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const location = data.location || {};
+    const names = localizePlace(location, isEn);
+    const place = [location.tole, names.municipality && `${names.municipality}-${num(location.ward)}`, names.district]
+        .filter(Boolean)
+        .join(", ");
 
-  const handleNewComplaint = () => {
-    window.location.reload(true);
-  }
-
-  if (!data) {
     return (
-      <div className="text-center py-10">
-        No complaint data found.
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-3xl mx-auto mt-20  print:mt-0">
-      {/* Success Card */}
-      <div className="bg-white rounded-2xl shadow-lg border overflow-hidden">
-        {/* Heading */}
-        <div className="bg-green-600 print:bg-green-600 text-white text-center py-6 print:hidden">
-          <FaCheckCircle size={70} className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold">
-            Complaint Submitted Successfully
-          </h1>
-
-          <p className="mt-3 text-green-100">
-            Your complaint has been successfully registered
-          </p>
-        </div>
-
-        {/* Body */}
-        <div className="p-5 print:p-2">
-
-          {/* Print Header */}
-          <div className="hidden print:block text-center border-b-2 border-gray-300 pb-5 mb-6 print:mb-2">
-            {/* <img
-              src={logo}
-              alt="Logo"
-              className="w-20 h-20 mx-auto mb-3"
-            /> */}
-
-            <h1 className="text-3xl font-bold text-gray-800">
-              Smart City Service Portal
-            </h1>
-
-            <p className="text-lg text-gray-600">
-              Government of Nepal
-            </p>
-
-            <p className="font-semibold mt-2">
-              Complaint Submission Receipt
-            </p>
-          </div>
-
-          {/* Tracking */}
-          <div className="border rounded-xl p-4 bg-gray-50 mb-6 print:mb-3">
-            <div className="flex items-center gap-3 mb-4">
-              <FaHashtag className="text-[#0f4c81]" />
-              <h3 className="text-xl font-semibold">
-                Tracking Number
-              </h3>
-            </div>
-
-            <div className="border-2 border-dashed border-[#0f4c81] rounded-xl p-6 bg-blue-50 mb-6">
-              {trackingId}
-            </div>
-          </div>
-
-          {/* Date */}
-          <div className="border rounded-xl p-6 mb-6">
-            <div className="flex items-center gap-3">
-              <FaCalendarDay className="text-[#0f4c81]" />
-
-              <div>
-                <p className="text-sm text-gray-500">
-                  Submitted On
-                </p>
-                <p className="font-semibold">
-                  {new Date(data.createdAt).toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="border rounded-xl overflow-hidden mb-8 ">
-            <div className="bg-gray-100 px-6 py-4 font-semibold">
-              Complaint Summary
-            </div>
-
-            <div className="p-6 space-y-2">
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Citizen</span>
-                <span>{data.user?.name || "N/A"}</span>
-              </div>
-
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Phone</span>
-                <span>{data.user?.phone || "-"}</span>
-              </div>
-
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Department</span>
-                <div className="flex justify-between  pb-2">
-                  <span>{data.department?.name || "-"}</span>
+        <div className="min-h-screen bg-slate-100 px-4 pb-16 pt-28 print:min-h-0 print:bg-white print:p-0">
+            <div className="mx-auto max-w-3xl">
+                {/* Safal sandesh */}
+                <div className="animate-fade-up text-center print:hidden">
+                    <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-600 text-2xl text-white shadow-lg ring-8 ring-green-600/15">
+                        <FaCheck />
+                    </span>
+                    <h1 className="mt-4 text-2xl font-bold text-slate-900">{t("complaintForm.success.title")}</h1>
+                    <p className="mt-1 text-slate-500">{t("complaintForm.success.text")}</p>
                 </div>
-              </div>
 
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Priority</span>
+                {/* ===== Nissa ===== */}
+                <article
+                    style={{ "--delay": "120ms" }}
+                    className="animate-fade-up mt-8 overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-lg print:mt-0 print:rounded-none print:border-2 print:border-slate-800 print:shadow-none"
+                >
+                    <div className="h-1.5 bg-[#dc143c]" />
 
-                <span>
-                  {data.priority}
-                </span>
-              </div>
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Province</span>
-                <span>{data.location?.province}</span>
-              </div>
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>District</span>
-                <span>{data.location?.district}</span>
-              </div>
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Municipality</span>
-                <span>{data.location?.municipality}</span>
-              </div>
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Ward No.</span>
-                <span>{data.location?.ward}</span>
-              </div>
-              <div className="flex justify-between border-b pb-2 pr-2">
-                <span>Tole / Street</span>
-                <span>{data.location?.tole}</span>
-              </div>
+                    {/* Letterhead */}
+                    <header className="flex items-center gap-4 border-b-2 border-[#003893] px-6 py-5 sm:px-8">
+                        <img src={settings.logo?.url || defaultLogo} alt="" className="h-16 w-16 shrink-0 object-contain" />
+                        <div className="flex-1 text-center">
+                            <p className="text-xs font-medium text-slate-500">{isEn ? settings.officeEn : settings.officeNe}</p>
+                            <p className="text-xl font-bold text-[#003893] sm:text-2xl">{isEn ? settings.nameEn : settings.nameNe}</p>
+                            <p className="text-xs text-slate-500">{isEn ? settings.addressEn : settings.addressNe}</p>
+                        </div>
+                        {/* Logo jatti nai thau, title bichma rahos */}
+                        <span className="hidden h-16 w-16 shrink-0 sm:block" />
+                    </header>
 
+                    <div className="px-6 py-6 sm:px-8">
+                        <h2 className="text-center">
+                            <span className="inline-block border-b-2 border-[#dc143c] px-4 pb-1 text-lg font-bold text-slate-900">
+                                {t("complaintForm.success.receipt")}
+                            </span>
+                        </h2>
+
+                        <div className="mt-6 flex flex-col gap-6 sm:flex-row">
+                            <div className="flex-1">
+                                <div className="mb-4 rounded-xl border-2 border-dashed border-[#003893]/40 bg-[#003893]/5 px-4 py-3">
+                                    <p className="text-xs font-medium text-slate-500">{t("complaintForm.success.number")}</p>
+                                    <p className="font-mono text-2xl font-bold tracking-wider text-[#003893]">{data.complaintId}</p>
+                                </div>
+
+                                <table className="w-full">
+                                    <tbody>
+                                        <Row label={t("complaintForm.success.date")}>
+                                            {formatBS(createdAt, isEn)}, {time}
+                                        </Row>
+                                        <Row label={t("complaintForm.success.applicant")}>{data.user?.name}</Row>
+                                        <Row label={t("complaintForm.success.phone")}>{data.phone || data.user?.phone}</Row>
+                                        <Row label={t("complaintForm.success.department")}>{data.department?.name}</Row>
+                                        <Row label={t("complaintForm.success.subject")}>{data.title}</Row>
+                                        <Row label={t("complaintForm.review.urgency")}>
+                                            {t(`complaintForm.details.urgency.${data.priority}.title`, { defaultValue: data.priority })}
+                                        </Row>
+                                        <Row label={t("complaintForm.success.place")}>{place}</Row>
+                                        <Row label={t("complaintForm.success.status")}>
+                                            <span className="text-amber-700">{t("complaintForm.success.statusPending")}</span>
+                                        </Row>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="flex shrink-0 flex-col items-center sm:pt-1">
+                                <div className="rounded-xl border border-slate-200 bg-white p-2.5">
+                                    <QRCodeSVG value={trackUrl} size={120} fgColor="#003893" level="M" />
+                                </div>
+                                <p className="mt-2 max-w-32 text-center text-xs text-slate-500">{t("complaintForm.success.scan")}</p>
+                            </div>
+                        </div>
+
+                        <p className="mt-6 border-t border-slate-200 pt-4 text-center text-xs text-slate-500">
+                            {t("complaintForm.success.printedNote")} {t("complaintForm.success.keep")}
+                            {(settings.phone || settings.email) && (
+                                <span className="mt-1 block">{[settings.phone, settings.email].filter(Boolean).join(" | ")}</span>
+                            )}
+                        </p>
+                    </div>
+
+                    <div className="h-1.5 bg-[#003893]" />
+                </article>
+
+                {/* Aba ke hunchha */}
+                <section style={{ "--delay": "240ms" }} className="animate-fade-up mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm print:hidden">
+                    <h3 className="font-bold text-slate-900">{t("complaintForm.success.next")}</h3>
+                    <ol className="mt-4 space-y-3">
+                        {(t("complaintForm.success.steps", { returnObjects: true }) || []).map((text, index) => (
+                            <li key={text} className="flex items-start gap-3 text-sm text-slate-600">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#003893] text-xs font-bold text-white">
+                                    {num(index + 1)}
+                                </span>
+                                <span className="pt-0.5">{text}</span>
+                            </li>
+                        ))}
+                    </ol>
+                </section>
+
+                <div style={{ "--delay": "320ms" }} className="animate-fade-up mt-6 flex flex-wrap justify-center gap-3 print:hidden">
+                    <button
+                        type="button"
+                        onClick={() => window.print()}
+                        className="flex items-center gap-2 rounded-xl bg-[#003893] px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#002a6e]"
+                    >
+                        <FaPrint />
+                        {t("complaintForm.success.print")}
+                    </button>
+                    <Link
+                        to={`/user/complaints/${encodeURIComponent(data.complaintId)}`}
+                        className="flex items-center gap-2 rounded-xl border border-[#003893] bg-white px-5 py-3 text-sm font-semibold text-[#003893] transition hover:bg-[#003893]/5"
+                    >
+                        <FaSearch />
+                        {t("complaintForm.success.track")}
+                    </Link>
+                    <button
+                        type="button"
+                        onClick={onNewComplaint}
+                        className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                        <FaRedo />
+                        {t("complaintForm.success.newComplaint")}
+                    </button>
+                    <Link to="/" className="flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-white">
+                        <FaHome />
+                        {t("complaintForm.success.home")}
+                    </Link>
+                </div>
             </div>
-          </div>
-
-          {/* Notice */}
-         
-
-          <div className="hidden print:block mt-10 border-t pt-5 text-center text-sm text-gray-600">
-            <p className="font-semibold">
-              This is a computer-generated complaint receipt.
-            </p>
-
-            <p>
-              Please keep this receipt for future reference.
-            </p>
-
-            <p className="mt-2">
-              Website: www.smartcity.gov.np
-            </p>
-
-            <p>
-              Email: support@smartcity.gov.np
-            </p>
-          </div>
-
-          {/* Button */}
-          <div className="flex flex-wrap gap-4 print:hidden">
-            <button
-              onClick={handlePrint}
-              className="flex items-center gap-2 bg-[#0f4c81] text-white px-6 py-3 rounded-lg transition"
-            >
-              <FaPrint size={18} />
-              Print Receipt
-            </button>
-
-            <button
-              onClick={handleNewComplaint}
-              className="flex items-center gap-2 border border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-100 transition print:hidden"
-            >
-              <FiRotateCcw size={18} />
-              Submit Another Complaint
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
-  )
-}
+    );
+};
 
-export default SuccessPage
+export default SuccessPage;

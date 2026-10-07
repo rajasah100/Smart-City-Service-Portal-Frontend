@@ -74,7 +74,7 @@ export const checkRegistration = createAsyncThunk(
   "event/checkRegistration",
   async (id, thunkAPI) => {
     try {
-      const response = await apiRequest.get(`/event-registrations/${id}/check`);
+      const response = await apiRequest.get(`/events/${id}/check`);
 
       return response.data.isRegistered;
     } catch (error) {

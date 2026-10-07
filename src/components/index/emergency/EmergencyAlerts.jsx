@@ -1,115 +1,123 @@
+import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Link } from "react-router-dom";
 import {
+    FaArrowRight,
     FaBolt,
+    FaBus,
     FaExclamationTriangle,
+    FaMapMarkerAlt,
     FaRoad,
     FaTint,
+    FaTrashAlt,
 } from "react-icons/fa";
 import { getNotices } from "../../../redux/slices/noticeSlice";
+import SectionHeading from "./SectionHeading";
+import { departmentKind } from "../../complaint/departmentKind";
+import { formatBS } from "../../../utils/nepaliDate";
+
+// Department anusar icon (naam napaye chetawani chinha)
+const KIND_ICONS = { water: FaTint, electricity: FaBolt, road: FaRoad, waste: FaTrashAlt, transport: FaBus, other: FaExclamationTriangle };
 
 const EmergencyAlerts = () => {
     const dispatch = useDispatch();
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
+    const num = (n) => (/^\d+$/.test(String(n)) ? Number(n).toLocaleString(isEn ? "en-US" : "ne-NP") : n);
 
-    const { notices, loading } = useSelector((state) => state.notice);
+    const { notices = [], loading } = useSelector((state) => state.notice);
 
-    // console.log(notices)
-
+    // High priority notice lai emergency alert manne
     useEffect(() => {
-        dispatch(getNotices({ category: "Emergency" }));
+        dispatch(getNotices({ priority: "high" }));
     }, [dispatch]);
 
-    const getIcon = (departmentName = "") => {
-        const name = departmentName.toLowerCase();
-
-        if (name.includes("water")) {
-            return <FaTint />;
-        }
-
-        if (name.includes("electric")) {
-            return <FaBolt />;
-        }
-
-        if (name.includes("road") || name.includes("transport")) {
-            return <FaRoad />;
-        }
-
-        return <FaExclamationTriangle />;
-    };
-
-    if (loading) {
-        return (
-            <section className="py-10 text-center">
-                Loading emergency alerts...
-            </section>
-        );
-    }
+    const alerts = Array.isArray(notices)
+        ? notices.filter((notice) => notice.priority === "high").slice(0, 6)
+        : [];
 
     return (
-        <section className="py-8 bg-white">
-            <div className="max-w-7xl mx-auto px-6">
+        <section id="emergency-alerts" className="bg-slate-50 py-20">
+            <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
-                <div className="text-center mb-12">
-                    <span className="text-red-600 font-semibold uppercase">
-                        Latest Alerts
-                    </span>
+                <SectionHeading
+                    label={t("emergency.alerts.label")}
+                    title={t("emergency.alerts.title")}
+                    description={t("emergency.alerts.description")}
+                />
 
-                    <h2 className="text-4xl font-bold text-green-800 mt-2">
-                        Emergency Alerts
-                    </h2>
+                {loading ? (
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {[1, 2].map((item) => (
+                            <div
+                                key={item}
+                                className="h-36 animate-pulse rounded-2xl bg-white"
+                            />
+                        ))}
+                    </div>
+                ) : alerts.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center">
+                        <p className="font-semibold text-slate-700">
+                            {t("emergency.alerts.emptyTitle")}
+                        </p>
 
-                    <p className="text-gray-500 mt-3 max-w-2xl mx-auto">
-                        Stay informed with the latest emergency announcements issued by the municipality.
-                    </p>
-                </div>
-
-                {notices.length === 0 ? (
-                    <div className="text-center text-gray-500">
-                        No emergency alerts available.
+                        <p className="mt-1 text-sm text-slate-500">
+                            {t("emergency.alerts.emptyText")}
+                        </p>
                     </div>
                 ) : (
-                    <div className="grid md:grid-cols-2 gap-6">
-                        {notices.slice(0, 6).map((notice) => (
-                            <div
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {alerts.map((notice) => (
+                            <Link
                                 key={notice._id}
-                                className="border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition"
+                                to={`/notices/${notice._id}`}
+                                className="group rounded-2xl border-l-4 border-red-600 bg-white p-6 shadow-sm transition hover:shadow-lg"
                             >
                                 <div className="flex items-start gap-4">
-
-                                    <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-red-100 text-red-600">
-                                        {getIcon(notice.department?.name)}
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xl text-red-600">
+                                        {(() => {
+                                            const Icon = KIND_ICONS[departmentKind(notice.department?.name)];
+                                            return <Icon />;
+                                        })()}
                                     </div>
 
-                                    <div className="flex-1">
-
-                                        <div className="flex justify-between items-center flex-wrap gap-2">
-
-                                            <h3 className="font-semibold text-lg">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <h3 className="font-semibold text-slate-900">
                                                 {notice.title}
                                             </h3>
 
-                                            <span className="text-sm bg-red-100 text-red-600 px-3 py-1 rounded-full">
-                                                {notice.department?.name}
-                                            </span>
-
+                                            {notice.department?.name && (
+                                                <span className="rounded-full bg-[#003893]/10 px-3 py-1 text-xs font-medium text-[#003893]">
+                                                    {notice.department.name}
+                                                </span>
+                                            )}
                                         </div>
 
-                                        <p className="text-gray-600 mt-3">
+                                        <p className="mt-2 line-clamp-2 text-sm text-slate-600">
                                             {notice.description}
                                         </p>
 
-                                        <p className="text-sm text-gray-500 mt-3">
-                                            {notice.ward}
-                                        </p>
+                                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                                            <span className="flex items-center gap-1">
+                                                {notice.ward && (
+                                                    <>
+                                                        <FaMapMarkerAlt />
+                                                        {t("emergency.alerts.ward", { ward: num(notice.ward) })} ·
+                                                    </>
+                                                )}
+                                                {formatBS(notice.createdAt, isEn)}
+                                            </span>
 
-                                        <p className="text-xs text-gray-400 mt-2">
-                                            Updated: {new Date(notice.createdAt).toLocaleDateString()}
-                                        </p>
-
+                                            <span className="flex items-center gap-1 font-semibold text-[#003893]">
+                                                {t("emergency.alerts.readMore")}
+                                                <FaArrowRight className="transition group-hover:translate-x-1" />
+                                            </span>
+                                        </div>
                                     </div>
-
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 )}

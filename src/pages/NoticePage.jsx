@@ -1,388 +1,362 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import NepaliDate from "nepali-date-converter";
 import {
-    FaCalendarAlt,
-    FaBuilding,
-    FaSearch,
     FaArrowRight,
-    FaMapMarkerAlt,
+    FaBuilding,
+    FaBullhorn,
+    FaChevronDown,
+    FaDownload,
+    FaExclamationCircle,
+    FaFileImage,
     FaFilePdf,
+    FaMapMarkerAlt,
+    FaPhoneAlt,
+    FaSearch,
 } from "react-icons/fa";
 
-import { getNotices, getNewArrivals } from "../redux/slices/noticeSlice";
-import city from "../assets/city1.webp";
+import { getNewArrivals } from "../redux/slices/noticeSlice";
 import { getDepartments } from "../redux/slices/departmentSlice";
-import { Link } from "react-router-dom";
+import PageHero from "../components/common/PageHero";
+import Reveal from "../components/common/Reveal";
+import apiRequest from "../utils/apiRequest";
+
+const CATEGORIES = ["", "notice", "tender", "news", "press"];
+const PAGE_SIZE = 10;
+
+const CATEGORY_STYLES = {
+    notice: "bg-[#003893]/10 text-[#003893]",
+    tender: "bg-amber-50 text-amber-700",
+    news: "bg-green-50 text-green-700",
+    press: "bg-purple-50 text-purple-700",
+};
+
+// BS miti ko tukra (din, mahina, sal) - list ko baya tira box ma
+const bsParts = (date, isEn) => {
+    try {
+        const nd = new NepaliDate(new Date(date));
+        const lang = isEn ? "en" : "np";
+        return { day: nd.format("DD", lang), month: nd.format("MMMM", lang), year: nd.format("YYYY", lang) };
+    } catch {
+        return { day: "", month: "", year: "" };
+    }
+};
 
 const NoticePage = () => {
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
     const dispatch = useDispatch();
 
-    const { notices, newArrivals, loading, error } = useSelector((state) => state.notice);
-    const { departments } = useSelector((state) => state.department)
+    const { newArrivals = [] } = useSelector((state) => state.notice);
+    const { departments = [] } = useSelector((state) => state.department);
 
+    const [category, setCategory] = useState("");
     const [search, setSearch] = useState("");
     const [department, setDepartment] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-    const latestRef = useRef(null);
-    const noticeRef = useRef(null);
+
+    // null = load hudai, [] = kehi bhetiyena
+    const [notices, setNotices] = useState(null);
+    const [failed, setFailed] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 500);
-
+        const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
         return () => clearTimeout(timer);
     }, [search]);
 
     useEffect(() => {
         dispatch(getDepartments());
-        dispatch(getNewArrivals());
-    }, [dispatch]);
+        if (newArrivals.length === 0) dispatch(getNewArrivals());
+    }, [dispatch, newArrivals.length]);
 
-
+    // Filter badlida naya list (purano response le naya lai nametos bhanera ignore)
     useEffect(() => {
-        dispatch(
-            getNotices({
-                search: debouncedSearch,
-                department,
-            })
-        );
-    }, [dispatch, debouncedSearch, department]);
+        let ignore = false;
 
+        apiRequest
+            .get("/notices", {
+                params: {
+                    search: debouncedSearch || undefined,
+                    department: department || undefined,
+                    category: category || undefined,
+                },
+            })
+            .then(({ data }) => {
+                if (ignore) return;
+                setNotices(Array.isArray(data) ? data : []);
+                setFailed(false);
+                setVisibleCount(PAGE_SIZE);
+            })
+            .catch(() => {
+                if (ignore) return;
+                setNotices([]);
+                setFailed(true);
+            });
+
+        return () => {
+            ignore = true;
+        };
+    }, [debouncedSearch, department, category]);
+
+    const changeFilter = (setter) => (value) => {
+        setNotices(null);
+        setter(value);
+    };
+
+    const resetFilters = () => {
+        setNotices(null);
+        setSearch("");
+        setDebouncedSearch("");
+        setDepartment("");
+        setCategory("");
+    };
+
+    const loading = notices === null;
+    const shown = loading ? [] : notices.slice(0, visibleCount);
+    const hasFilter = search || department || category;
 
     return (
-        <section className="bg-gray-100 min-h-screen py-26">
-            <div className="max-w-7xl mx-auto px-8">
-                {/* Header */}
-                <section className="relative overflow-hidden rounded-3xl mb-10">
-                    {/* Background Image */}
-                    <img
-                        src={city}
-                        alt="City"
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
+        <div className="min-h-screen bg-slate-100 pb-16">
+            <PageHero
+                icon={FaBullhorn}
+                badge={t("hero.notices.badge")}
+                title={t("hero.notices.title")}
+                description={t("hero.notices.description")}
+            />
 
-                    {/* Overlay */}
+            <div className="mx-auto max-w-7xl px-4 pt-10 sm:px-6 lg:px-8">
 
-                    <div className="absolute inset-0 bg-black/70"></div>
-
-                    {/* Content */}
-
-                    <div className="relative z-10 px-10 py-20 md:px-16">
-                        <span className="inline-block border border-slate-400 text-white px-5 py-2 rounded-full text-sm font-semibold">
-                            Smart City Service Portal
-                        </span>
-
-                        <h1 className="text-white text-4xl md:text-6xl font-bold mt-6 leading-tight">
-                            City Notices &
-                            <br />
-                            Public Announcements
-                        </h1>
-
-                        <p className="text-gray-200 mt-6 max-w-2xl text-lg leading-8">
-                            Stay informed with official notices, emergency alerts, maintenance
-                            updates, public events, and important announcements published by
-                            municipal departments.
-                        </p>
-
-                        <div className="flex gap-4 mt-8">
+                {/* Category tabs + filters */}
+                <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div role="tablist" className="flex overflow-x-auto bg-[#003893]">
+                        {CATEGORIES.map((value) => (
                             <button
-                                onClick={() => noticeRef.current?.scrollIntoView({
-                                    behavior: "smooth",
-                                })}
-                                className="bg-[#d9a441] hover:bg-yellow-600 transition px-6 py-3 rounded-xl font-semibold text-white"
+                                key={value || "all"}
+                                role="tab"
+                                aria-selected={category === value}
+                                onClick={() => category !== value && changeFilter(setCategory)(value)}
+                                className={`shrink-0 border-b-4 px-5 py-3.5 text-sm font-semibold transition ${
+                                    category === value
+                                        ? "border-[#dc143c] bg-white/15 text-white"
+                                        : "border-transparent text-white/75 hover:bg-white/10 hover:text-white"
+                                }`}
                             >
-                                Explore Notices
+                                {value ? t(`noticeTabs.${value}`) : t("noticesPage.all")}
                             </button>
-
-                            <button
-                                onClick={() => latestRef.current?.scrollIntoView({
-                                    behavior: "smooth"
-                                })}
-                                className="border border-white text-white px-6 py-3 rounded-xl hover:bg-white hover:text-black transition"
-                            >
-                                Latest Updates
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-
-                <div ref={latestRef} className="mb-14">
-
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h2 className="text-3xl font-bold text-gray-800">
-                                Latest Updates
-                            </h2>
-
-                            <p className="text-gray-500 mt-1">
-                                Recently published notices from different departments.
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={() =>
-                                noticeRef.current?.scrollIntoView({
-                                    behavior: "smooth",
-                                })
-                            }
-                            className="flex items-center gap-2 text-[#d9a441] font-semibold hover:gap-3 transition"
-                        >
-                            View All
-                            <FaArrowRight />
-                        </button>
-                    </div>
-
-                    <div className="grid md:grid-cols-4 gap-6">
-
-                        {newArrivals.map((notice) => (
-
-                            <div
-                                key={notice._id}
-                                className="bg-white rounded-xl overflow-hidden shadow"
-                            >
-
-                                {!notice.attachment?.length ? (
-
-                                    <div className="h-44 bg-gray-100 flex items-center justify-center text-gray-500">
-                                        No Attachment
-                                    </div>
-
-                                ) : notice.attachment[0].type === "image" ? (
-
-                                    <img
-                                        src={notice.attachment[0].url}
-                                        alt={notice.attachment[0].altText}
-                                        className="h-44 w-full object-cover"
-                                    />
-
-                                ) : (
-
-                                    <a
-                                        href={notice.attachment[0].url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="h-44 flex flex-col justify-center items-center bg-red-50 hover:bg-red-100"
-                                    >
-                                        <FaFilePdf className="text-red-600 text-6xl" />
-
-                                        <span className="mt-2 text-red-600">
-                                            Open PDF
-                                        </span>
-
-                                    </a>
-
-                                )}
-
-                                <div className="p-5">
-
-                                    <h3 className="font-semibold line-clamp-2">
-                                        {notice.title}
-                                    </h3>
-
-                                    <p className="text-sm text-gray-500 mt-2">
-                                        {notice.department?.name}
-                                    </p>
-
-                                    <Link
-                                        to={`/notices/${notice._id}`}
-                                        className="text-[#d9a441] mt-4 inline-block"
-                                    >
-                                        Read More →
-                                    </Link>
-
-                                </div>
-
-                            </div>
-
                         ))}
-
                     </div>
 
-                </div>
-
-
-                {/* Filter */}
-
-                <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 mb-8">
-
-                    <div className="flex items-center justify-between mb-5">
-
-                        <h2 className="text-xl font-semibold text-gray-800">
-                            Search Notices
-                        </h2>
-
-                        <button
-                            onClick={() => {
-                                setSearch("");
-                                setDepartment("");
-                            }}
-                            className="text-sm text-[#d9a441] hover:underline"
-                        >
-                            Reset
-                        </button>
-
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-                        {/* Search */}
-
-                        <div className="relative md:col-span-2">
-
-                            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-
+                    <div className="grid gap-3 p-4 md:grid-cols-[1fr_16rem_auto]">
+                        <div className="relative">
+                            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
-                                type="text"
-                                placeholder="Search by title..."
+                                type="search"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full rounded-xl border border-gray-300 py-3 pl-11 pr-4 outline-none focus:border-[#d9a441] focus:ring-2 focus:ring-[#d9a441]/20"
+                                placeholder={t("noticesPage.searchPlaceholder")}
+                                className="w-full rounded-xl border border-slate-200 py-3 pl-11 pr-4 text-sm outline-none focus:border-[#003893] focus:ring-2 focus:ring-[#003893]/20"
                             />
-
-                            {loading && (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                    <div className="h-5 w-5 rounded-full border-2 border-[#d9a441] border-t-transparent animate-spin"></div>
-                                </div>
-                            )}
-
                         </div>
-
-                        {/* Department */}
 
                         <select
                             value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-[#d9a441] focus:ring-2 focus:ring-[#d9a441]/20"
+                            onChange={(e) => changeFilter(setDepartment)(e.target.value)}
+                            className="rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#003893] focus:ring-2 focus:ring-[#003893]/20"
                         >
-
-                            <option value="">All Departments</option>
-
-                            {departments?.map((dept) => (
-                                <option
-                                    key={dept._id}
-                                    value={dept._id}
-                                >
+                            <option value="">{t("noticesPage.allDepartments")}</option>
+                            {departments.map((dept) => (
+                                <option key={dept._id} value={dept._id}>
                                     {dept.name}
                                 </option>
                             ))}
-
                         </select>
 
+                        <button
+                            onClick={resetFilters}
+                            disabled={!hasFilter}
+                            className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            {t("noticesPage.reset")}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid gap-8 lg:grid-cols-3">
+
+                    {/* Notice list */}
+                    <div className="lg:col-span-2">
+                        {!loading && !failed && (
+                            <p className="mb-3 text-sm text-slate-500">
+                                {t("noticesPage.results", { count: notices.length })}
+                            </p>
+                        )}
+
+                        {loading ? (
+                            <div className="space-y-3">
+                                {[1, 2, 3, 4].map((item) => (
+                                    <div key={item} className="flex animate-pulse gap-4 rounded-xl bg-white p-4">
+                                        <div className="h-20 w-20 shrink-0 rounded-lg bg-slate-200" />
+                                        <div className="flex-1 space-y-3 py-1">
+                                            <div className="h-4 w-1/3 rounded bg-slate-200" />
+                                            <div className="h-5 w-3/4 rounded bg-slate-200" />
+                                            <div className="h-4 w-1/2 rounded bg-slate-200" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : failed ? (
+                            <p className="rounded-xl border border-red-200 bg-red-50 py-10 text-center text-red-600">
+                                {t("noticesPage.failed")}
+                            </p>
+                        ) : notices.length === 0 ? (
+                            <p className="rounded-xl border border-dashed border-slate-300 bg-white py-12 text-center text-slate-500">
+                                {t("noticesPage.empty")}
+                            </p>
+                        ) : (
+                            <ul className="space-y-3">
+                                {shown.map((notice, index) => {
+                                    const date = bsParts(notice.createdAt, isEn);
+                                    const cat = notice.category || "notice";
+                                    const file = notice.attachment?.[0];
+                                    const urgent = notice.priority === "high";
+
+                                    return (
+                                        <Reveal as="li" key={notice._id} delay={(index % PAGE_SIZE) * 40}>
+                                            <Link
+                                                to={`/notices/${notice._id}`}
+                                                className={`group flex gap-4 rounded-xl border bg-white p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-lg ${
+                                                    urgent ? "border-red-200 border-l-4 border-l-[#dc143c]" : "border-slate-200 hover:border-[#003893]/30"
+                                                }`}
+                                            >
+                                                {/* BS date box */}
+                                                <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-lg bg-[#003893] text-white">
+                                                    <span className="text-2xl font-bold leading-none">{date.day}</span>
+                                                    <span className="mt-1 text-xs">{date.month}</span>
+                                                    <span className="text-[10px] text-white/70">{date.year}</span>
+                                                </div>
+
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${CATEGORY_STYLES[cat] || CATEGORY_STYLES.notice}`}>
+                                                            {t(`noticeTabs.${cat}`)}
+                                                        </span>
+
+                                                        {urgent && (
+                                                            <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-semibold text-[#dc143c]">
+                                                                <FaExclamationCircle />
+                                                                {t("noticesPage.urgent")}
+                                                            </span>
+                                                        )}
+
+                                                        {file && (
+                                                            <span className="flex items-center gap-1 text-[11px] text-slate-500">
+                                                                {file.type === "pdf" ? <FaFilePdf className="text-[#dc143c]" /> : <FaFileImage className="text-[#2c5d79]" />}
+                                                                {file.type === "pdf" ? t("noticesPage.pdf") : t("noticesPage.image")}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <h2 className="mt-1.5 line-clamp-2 font-semibold text-slate-900 group-hover:text-[#003893]">
+                                                        {notice.title}
+                                                    </h2>
+
+                                                    <p className="mt-1 line-clamp-1 text-sm text-slate-500">{notice.description}</p>
+
+                                                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                                                        {notice.department?.name && (
+                                                            <span className="flex items-center gap-1.5">
+                                                                <FaBuilding className="text-slate-400" />
+                                                                {notice.department.name}
+                                                            </span>
+                                                        )}
+                                                        {notice.ward && (
+                                                            <span className="flex items-center gap-1.5">
+                                                                <FaMapMarkerAlt className="text-slate-400" />
+                                                                {t("noticesPage.ward", { ward: notice.ward })}
+                                                            </span>
+                                                        )}
+                                                        <span className="ml-auto flex items-center gap-1 font-semibold text-[#003893]">
+                                                            {t("noticesPage.readMore")}
+                                                            <FaArrowRight className="transition group-hover:translate-x-1" />
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </Link>
+                                        </Reveal>
+                                    );
+                                })}
+                            </ul>
+                        )}
+
+                        {!loading && notices.length > visibleCount && (
+                            <div className="mt-6 text-center">
+                                <button
+                                    onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                                    className="inline-flex items-center gap-2 rounded-lg border border-[#003893] px-6 py-2.5 text-sm font-semibold text-[#003893] transition hover:bg-[#003893] hover:text-white"
+                                >
+                                    {t("noticesPage.loadMore")}
+                                    <FaChevronDown className="text-xs" />
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                </div>
-                {error && <p className="text-red-500 mb-5">{error}</p>}
+                    {/* Sidebar */}
+                    <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+                        <Reveal className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                            <h2 className="flex items-center gap-2 bg-[#003893] px-4 py-3 font-semibold text-white">
+                                <FaBullhorn />
+                                {t("noticesPage.sidebar.latest")}
+                            </h2>
 
-                {/* Notice Cards */}
-                <div ref={noticeRef}>
-                    {notices.length === 0 ? (
-                        <p className="text-center text-gray-500">No notices available</p>
-                    ) : (
-                        <div className="grid md:grid-cols-3 gap-6">
-                            {notices.map((notice) => (
-                                <div
-                                    key={notice._id}
-                                    className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-                                >
+                            <ul className="divide-y divide-slate-100">
+                                {newArrivals.slice(0, 5).map((notice) => {
+                                    const date = bsParts(notice.createdAt, isEn);
 
-                                    {/* Attachment */}
+                                    return (
+                                        <li key={notice._id}>
+                                            <Link to={`/notices/${notice._id}`} className="block px-4 py-3 transition hover:bg-slate-50">
+                                                <span className="text-xs text-[#dc143c]">
+                                                    {date.year} {date.month} {date.day}
+                                                </span>
+                                                <span className="mt-0.5 line-clamp-2 block text-sm font-medium text-slate-800 hover:text-[#003893]">
+                                                    {notice.title}
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </Reveal>
 
-                                    <div className="relative h-56 overflow-hidden">
+                        <Reveal delay={100} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <h2 className="mb-3 font-semibold text-slate-900">{t("noticesPage.sidebar.links")}</h2>
 
-                                        {!notice.attachment?.length ? (
-                                            <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-500">
-                                                No Attachment
-                                            </div>
-                                        ) : notice.attachment[0].type === "image" ? (
-                                            <img
-                                                src={notice.attachment[0].url}
-                                                alt={notice.attachment[0].altText}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <a
-                                                href={notice.attachment[0].url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="w-full h-full bg-red-50 flex flex-col items-center justify-center hover:bg-red-100"
-                                            >
-                                                <FaFilePdf className="text-red-600 text-7xl" />
-                                                <p className="mt-3 font-medium text-red-600">
-                                                    Open PDF
-                                                </p>
-                                            </a>
-                                        )}
-
-                                        {/* Priority Badge */}
-                                        <span
-                                            className={`absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-semibold text-white ${notice.priority === "high"
-                                                    ? "bg-red-600"
-                                                    : notice.priority === "medium"
-                                                        ? "bg-yellow-500"
-                                                        : "bg-green-600"
-                                                }`}
-                                        >
-                                            {notice.priority.toUpperCase()}
-                                        </span>
-
-                                    </div>
-
-                                    {/* Body */}
-
-                                    <div className="p-6">
-
-                                        <h2 className="text-xl font-bold text-gray-800 line-clamp-2">
-                                            {notice.title}
-                                        </h2>
-
-                                        <p className="text-gray-600 mt-3 line-clamp-3">
-                                            {notice.description}
-                                        </p>
-
-                                        {/* Info */}
-
-                                        <div className="space-y-3 mt-5 text-sm text-gray-500">
-
-                                            <div className="flex items-center gap-2">
-                                                <FaBuilding className="text-[#d9a441]" />
-                                                {notice.department?.name}
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <FaMapMarkerAlt className="text-[#d9a441]" />
-                                                {notice.ward}
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <FaCalendarAlt className="text-[#d9a441]" />
-                                                {new Date(notice.createdAt).toLocaleDateString()}
-                                            </div>
-
-                                        </div>
-
-                                        {/* Button */}
-
-                                        <Link
-                                            to={`/notices/${notice._id}`}
-                                            className="mt-6 inline-flex items-center gap-2 text-[#d9a441] font-semibold hover:gap-3 transition-all"
-                                        >
-                                            Read More
-                                            <FaArrowRight />
-                                        </Link>
-
-                                    </div>
-
-                                </div>
-                            ))}
-
-                        </div>
-                    )}
+                            <div className="space-y-2">
+                                {[
+                                    { to: "/downloads", icon: FaDownload, label: t("noticesPage.sidebar.downloads") },
+                                    { to: "/complaint", icon: FaExclamationCircle, label: t("noticesPage.sidebar.complaint") },
+                                    { to: "/emergency", icon: FaPhoneAlt, label: t("noticesPage.sidebar.emergency") },
+                                ].map(({ to, icon: Icon, label }) => (
+                                    <Link
+                                        key={to}
+                                        to={to}
+                                        className="flex items-center gap-3 rounded-lg border border-slate-100 px-3 py-2.5 text-sm text-slate-700 transition hover:border-[#003893]/30 hover:bg-[#003893]/5 hover:text-[#003893]"
+                                    >
+                                        <Icon className="text-[#003893]" />
+                                        {label}
+                                        <FaArrowRight className="ml-auto text-xs text-slate-400" />
+                                    </Link>
+                                ))}
+                            </div>
+                        </Reveal>
+                    </aside>
                 </div>
             </div>
-        </section>
+        </div>
     );
 };
 

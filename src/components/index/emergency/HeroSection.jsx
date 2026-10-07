@@ -1,533 +1,225 @@
+import { useTranslation } from "react-i18next";
+import { toast } from "react-toastify";
 import { MdEmergency } from "react-icons/md";
-import { FaMapMarkedAlt, FaPhoneAlt, FaSearch } from "react-icons/fa";
+import { FaMapMarkedAlt, FaPhoneAlt, FaSearch, FaTimes } from "react-icons/fa";
 import { IoIosRadio } from "react-icons/io";
 import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { normalizeServiceType } from "./serviceType";
 
-import {
-    getEmergencyServices,
-    getNearbyServices,
-} from "../../../redux/slices/emergencyServiceSlice";
+import { getEmergencyServices } from "../../../redux/slices/emergencyServiceSlice";
 
-import LoadingSpinner from "../../common/LoadingSpinner";
+import PageHero from "../../common/PageHero";
 
+const scrollTo = (id) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
 const HeroSection = () => {
 
     const dispatch = useDispatch();
+    const { t } = useTranslation();
 
     const [search, setSearch] = useState("");
+    const [showResults, setShowResults] = useState(false);
 
-    const {
-        services,
-        nearbyServices,
-        loading
-    } = useSelector(
+    const { services = [], loading } = useSelector(
         (state) => state.emergencyService
     );
 
+    // EmergencyAlerts section le load gareko high-priority notice
+    const { notices = [] } = useSelector((state) => state.notice);
 
-    const handleSearch = () => {
+    const liveAlerts = Array.isArray(notices)
+        ? notices.filter((notice) => notice.priority === "high").slice(0, 3)
+        : [];
+
+
+    const handleSearch = async () => {
 
         if (!search.trim()) return;
 
-        dispatch(
-            getEmergencyServices({
-                search: search.trim()
-            })
-        );
+        try {
+            const result = await dispatch(
+                getEmergencyServices({ search: search.trim() })
+            ).unwrap();
 
-    };
+            setShowResults(true);
 
-
-    const handleNearby = () => {
-
-        if (!navigator.geolocation) {
-            alert("Location is not supported");
-            return;
+            if (result.length === 0) {
+                toast.info(t("emergency.noSearchResult"));
+            }
+        } catch {
+            toast.error(t("emergency.searchFailed"));
         }
 
-
-        navigator.geolocation.getCurrentPosition(
-
-            (position) => {
-
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-
-
-                dispatch(
-                    getNearbyServices({
-                        lat,
-                        lng,
-                        distance: 5000
-                    })
-                );
-
-            },
-
-
-            () => {
-                alert(
-                    "Please allow location permission"
-                );
-            }
-
-        );
-
     };
-
 
 
     return (
 
         <>
 
-            <section className="bg-linear-to-r from-[#25292C] via-[#27292a] to-red-700 text-white">
+            <PageHero
+                icon={MdEmergency}
+                badge={t("hero.emergency.badge")}
+                title={t("hero.emergency.title")}
+                description={t("hero.emergency.description")}
+            >
+
+                {/* SEARCH */}
+                <div className="relative mx-auto max-w-xl">
+
+                    <FaSearch
+                        onClick={handleSearch}
+                        className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer"
+                    />
+
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                handleSearch();
+                            }
+                        }}
+                        placeholder={t("emergency.searchPlaceholder")}
+                        className="w-full rounded-xl border border-white/20 bg-white/5 py-4 pl-14 pr-5 text-white placeholder:text-slate-400 outline-none focus:border-[#d9a441]"
+                    />
+
+                </div>
+
+
+                {/* BUTTONS */}
+                <div className="flex flex-wrap justify-center gap-4 mt-6">
+
+                    <a
+                        href="tel:100"
+                        className="flex gap-2 items-center bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 transition"
+                    >
+                        <FaPhoneAlt />
+                        {t("emergency.callPolice")}
+                    </a>
+
+                    <a
+                        href="tel:102"
+                        className="flex gap-2 items-center bg-[#d9a441] text-[#10151c] px-6 py-3 rounded-xl font-semibold hover:bg-[#c8932f] transition"
+                    >
+                        <FaPhoneAlt />
+                        {t("emergency.ambulance")}
+                    </a>
+
+                    <button
+                        onClick={() => scrollTo("nearby-services")}
+                        className="flex items-center gap-2 border border-white/60 text-white px-6 py-3 rounded-xl hover:bg-white hover:text-[#10151c] transition"
+                    >
+                        <FaMapMarkedAlt />
+                        {t("emergency.findNearby")}
+                    </button>
+
+                </div>
+
+            </PageHero>
+
+
+            {/* LIVE ALERT (asli high-priority notice) */}
+            {/* Home ko सूचना ticker jastai: seto patti, baya rato label */}
+            <section className="flex items-stretch border-b border-slate-200 bg-white">
+
+                <span className="flex shrink-0 items-center gap-2 bg-[#dc143c] px-4 py-2.5 text-sm font-semibold text-white">
+                    <IoIosRadio className="animate-pulse" />
+                    {t("emergency.liveAlerts")}
+                </span>
+
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 px-4 py-2">
+
+                    {liveAlerts.length > 0 ? (
+                        liveAlerts.map((alert) => (
+                            <Link
+                                key={alert._id}
+                                to={`/notices/${alert._id}`}
+                                className="flex max-w-xs items-center gap-2 truncate text-sm text-slate-700 hover:text-[#dc143c] hover:underline"
+                            >
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#dc143c]" />
+                                {alert.title}
+                            </Link>
+                        ))
+                    ) : (
+                        <span className="text-sm text-slate-500">
+                            {t("emergency.noLiveAlerts")}
+                        </span>
+                    )}
+
+                    <button
+                        onClick={() => scrollTo("safety-guide")}
+                        className="ml-auto text-sm font-medium text-[#003893] underline-offset-4 hover:underline"
+                    >
+                        {t("emergency.safetyGuideLink")}
+                    </button>
+
+                </div>
+
+            </section>
 
 
-                <div className="max-w-7xl mx-auto px-8 py-20">
+            {/* SEARCH RESULT */}
+            {showResults && services.length > 0 && (
 
+                <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-10">
 
-                    <div className="grid lg:grid-cols-2 gap-12 items-center">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-slate-900">
+                                {t("emergency.searchResults")}
+                            </h2>
 
-                        {/* LEFT */}
-
-                        <div>
-
-
-                            <div className="
-        inline-flex items-center gap-2
-        bg-white/20 backdrop-blur-md
-        px-4 py-2 rounded-full
-        text-sm font-medium mb-6
-        ">
-
-                                <MdEmergency className="text-xl animate-pulse" />
-
-                                Emergency Services • 24/7 Available
-
-                            </div>
-
-
-
-                            <h1 className="
-        text-4xl md:text-6xl
-        font-bold leading-tight
-        ">
-
-                                Emergency
-
-                                <span className="block text-yellow-300">
-
-                                    Response Center
-
-                                </span>
-
-                            </h1>
-
-
-
-                            <p className="
-        mt-6 text-lg text-red-100
-        max-w-xl leading-8
-        ">
-
-                                Get immediate assistance during emergencies.
-                                Quickly contact police, ambulance,
-                                fire brigade, hospitals and municipality
-                                emergency departments anytime.
-
-                            </p>
-
-
-
-
-                            {/* SEARCH */}
-
-                            <div className="relative mt-8 max-w-xl  border rounded-xl">
-
-
-                                <FaSearch
-                                    onClick={handleSearch}
-                                    className="
-        absolute left-5 top-1/2
-        -translate-y-1/2
-        text-gray-400 cursor-pointer
-        "
-                                />
-
-
-                                <input
-
-                                    type="text"
-
-                                    value={search}
-
-                                    onChange={(e) => setSearch(e.target.value)}
-
-                                    onKeyDown={(e) => {
-
-                                        if (e.key === "Enter") {
-                                            handleSearch();
-                                        }
-
-                                    }}
-
-                                    placeholder="Search emergency service..."
-
-                                    className="
-        w-full rounded-xl py-4
-        pl-14 pr-5
-        text-white
-        outline-none shadow-xl
-        "
-
-                                />
-
-
-                            </div>
-
-
-
-                            {/* BUTTONS */}
-
-
-                            <div className="
-        flex flex-wrap gap-4 mt-8
-        ">
-
-
-                                <a
-
-                                    href="tel:100"
-
-                                    className="
-        flex gap-2 items-center
-        bg-white text-red-600
-        px-6 py-4 rounded-xl
-        font-semibold
-        hover:bg-green-100
-        "
-
-                                >
-
-                                    <FaPhoneAlt />
-
-                                    Call Emergency
-
-                                </a>
-
-
-
-                                <button
-
-                                    onClick={handleNearby}
-
-                                    className="
-        flex items-center gap-2
-        border border-white
-        px-6 py-4 rounded-xl
-        hover:bg-white
-        hover:text-red-600
-        "
-
-                                >
-
-                                    <FaMapMarkedAlt />
-
-                                    Find Nearby
-
-                                </button>
-
-
-                            </div>
-
-
-
+                            <button
+                                onClick={() => setShowResults(false)}
+                                className="text-slate-400 hover:text-slate-700"
+                                aria-label={t("emergency.closeResults")}
+                            >
+                                <FaTimes />
+                            </button>
                         </div>
 
+                        {loading ? (
+                            <p className="py-6 text-center text-slate-500">{t("emergency.searching")}</p>
+                        ) : (
+                            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {services.map((service) => (
+                                    <div
+                                        key={service._id}
+                                        className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 p-4"
+                                    >
+                                        <div className="min-w-0">
+                                            <h3 className="truncate font-semibold text-slate-900">
+                                                {service.name}
+                                            </h3>
 
+                                            <p className="text-sm text-slate-500">
+                                                {t(`emergency.nearby.types.${normalizeServiceType(service.type)}`)}
+                                                {service.address && ` · ${service.address}`}
+                                            </p>
+                                        </div>
 
-
-                        {/* RIGHT CARD */}
-
-                        <div className="flex justify-center lg:justify-end">
-
-
-                            <div className="
-        bg-white rounded-3xl
-        shadow-2xl p-8
-        w-full max-w-sm
-        text-gray-800
-        ">
-
-
-                                <div className="text-center">
-
-
-                                    <div className="
-        w-20 h-20
-        rounded-full
-        bg-red-100
-        flex items-center
-        justify-center mx-auto
-        animate-pulse
-        ">
-
-                                        <MdEmergency
-                                            className="text-red-600 text-5xl"
-                                        />
-
+                                        <a
+                                            href={`tel:${service.phone}`}
+                                            className="flex shrink-0 items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                                        >
+                                            <FaPhoneAlt />
+                                            {service.phone}
+                                        </a>
                                     </div>
-
-
-                                    <h2 className="text-3xl font-bold mt-5">
-
-                                        Emergency
-
-                                    </h2>
-
-
-                                    <p className="text-gray-500 mt-2">
-
-                                        Important Hotline Numbers
-
-                                    </p>
-
-
-                                </div>
-
-
-
-                                <div className="space-y-4 mt-8">
-
-
-                                    {
-                                        [
-                                            {
-                                                name: "🚓 Nepal Police",
-                                                phone: "100"
-                                            },
-
-                                            {
-                                                name: "🚒 Fire Brigade",
-                                                phone: "101"
-                                            },
-
-                                            {
-                                                name: "🚑 Ambulance",
-                                                phone: "102"
-                                            }
-
-                                        ].map((item, index) => (
-
-                                            <div
-                                                key={index}
-                                                className="
-        flex justify-between
-        bg-blue-50
-        rounded-xl p-4
-        "
-                                            >
-
-                                                <span>
-                                                    {item.name}
-                                                </span>
-
-
-                                                <a
-                                                    href={`tel:${item.phone}`}
-                                                    className="font-bold text-blue-600 underline"
-                                                >
-
-                                                    {item.phone}
-
-                                                </a>
-
-
-                                            </div>
-
-
-                                        ))
-                                    }
-
-
-                                </div>
-
-
-
-                                <a
-                                    href="tel:100"
-                                    className="
-        mt-8 flex
-        items-center justify-center
-        gap-2 bg-red-600
-        text-white py-4 rounded-xl
-        "
-                                >
-
-                                    <FaPhoneAlt />
-
-                                    Emergency Call
-
-                                </a>
-
-
-
+                                ))}
                             </div>
-
-
-                        </div>
-
+                        )}
 
                     </div>
 
-
-
-                    {/* SEARCH RESULT */}
-
-                    {
-                        (services.length > 0 || nearbyServices.length > 0) &&
-
-                        <div className="
-        mt-10 bg-white
-        text-gray-800
-        rounded-xl p-6
-        ">
-
-
-                            <h2 className="text-2xl font-bold mb-4">
-
-                                Emergency Services
-
-                            </h2>
-
-
-                            {
-                                loading ?
-
-                                    <LoadingSpinner />
-
-                                    :
-
-                                    [
-                                        ...services,
-                                        ...nearbyServices
-                                    ].map(service => (
-
-
-                                        <div
-                                            key={service._id}
-                                            className="
-        border-b py-4
-        "
-                                        >
-
-                                            <h3 className="font-bold text-lg">
-
-                                                {service.name}
-
-                                            </h3>
-
-
-                                            <p>
-                                                Type: {service.type}
-                                            </p>
-
-
-                                            <p>
-                                                Phone:
-                                                <a
-                                                    href={`tel:${service.phone}`}
-                                                    className="text-blue-600 ml-2"
-                                                >
-                                                    {service.phone}
-                                                </a>
-                                            </p>
-
-
-                                            <p>
-                                                Address: {service.address}
-                                            </p>
-
-
-                                        </div>
-
-
-                                    ))
-
-                            }
-
-
-                        </div>
-
-                    }
-
-
-
                 </div>
-
-
-            </section>
-
-
-
-
-
-            {/* LIVE ALERT */}
-
-
-            <section className="bg-slate-900 text-white">
-
-                <div className="
-        max-w-7xl mx-auto
-        px-8 py-3
-        flex flex-wrap gap-4
-        items-center
-        ">
-
-
-                    <span className="
-        font-semibold text-yellow-400
-        flex items-center gap-2
-        ">
-
-                        <IoIosRadio className="animate-pulse" />
-
-                        Live Alerts
-
-                    </span>
-
-
-
-                    {
-                        [
-                            "Heavy Rain Warning",
-                            "Power Outage",
-                            "Water Supply Interrupted"
-
-                        ].map((alert, index) => (
-
-
-                            <span
-                                key={index}
-                                className="bg-yellow-500/20 text-yellow-300 px-4 py-1 rounded-full text-sm"
-                            >
-
-                                ● {alert}
-
-                            </span>
-
-
-                        ))
-                    }
-
-                </div>
-
-            </section>
-
+            )}
 
         </>
 

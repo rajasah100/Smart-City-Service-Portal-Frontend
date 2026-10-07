@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
     FaIdCard,
     FaCar,
@@ -7,7 +8,9 @@ import {
     FaHeartbeat,
 } from "react-icons/fa";
 
+import { RiGovernmentLine } from "react-icons/ri";
 import Card from "../components/index/government/Card";
+import PageHero from "../components/common/PageHero";
 
 const services = [
     {
@@ -67,35 +70,17 @@ const services = [
 ];
 
 const GovernmentPage = () => {
+    const { t } = useTranslation();
+
     return (
-        <section className="min-h-screen bg-slate-50 pt-16">
+        <section className="min-h-screen bg-slate-50">
             {/* Hero */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#10151c] to-[#1e2a38] py-20 px-4">
-                <div className="absolute inset-0 opacity-10">
-                    <div
-                        className="w-full h-full"
-                        style={{
-                            backgroundImage:
-                                "radial-gradient(circle at 20% 50%, #4a6c8f 0%, transparent 50%), radial-gradient(circle at 80% 20%, #d9a441 0%, transparent 40%)",
-                        }}
-                    />
-                </div>
-
-                <div className="relative max-w-4xl mx-auto text-center">
-                    <span className="text-[#d9a441] uppercase tracking-wider text-xs border border-white/70 px-3 py-1 rounded-full font-bold">
-                        Government Services
-                    </span>
-
-                    <h1 className="mt-4 text-3xl md:text-5xl font-bold text-white">
-                        Government Services Portal
-                    </h1>
-
-                    <p className="mt-4 text-slate-300 max-w-2xl mx-auto">
-                        Access official government services from one place. Select a service
-                        and continue securely to the official government website.
-                    </p>
-                </div>
-            </div>
+            <PageHero
+                icon={RiGovernmentLine}
+                badge={t("hero.government.badge")}
+                title={t("hero.government.title")}
+                description={t("hero.government.description")}
+            />
 
             {/* Services */}
             <div className="max-w-7xl mx-auto px-6 py-16">

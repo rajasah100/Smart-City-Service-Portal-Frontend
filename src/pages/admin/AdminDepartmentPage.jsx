@@ -6,6 +6,14 @@ import { useState } from "react";
 import DepartmentModal from "../../components/admin/departments/DepartmentModal";
 
 
+// Department le herne thau (khali = pura Nepal / pradesh / jilla)
+const serviceAreaText = (area) => {
+    if (!area?.province) return "All of Nepal";
+    if (!area.district) return area.province;
+    if (!area.municipalities?.length) return `${area.district} district`;
+    return `${area.district}: ${area.municipalities.map((name) => name.replace(/ (Rural |Sub-)?(Metropolitan City|Municipality)$/, "")).join(", ")}`;
+};
+
 const AdminDepartmentPage = () => {
     const dispatch = useDispatch();
 
@@ -27,7 +35,7 @@ const AdminDepartmentPage = () => {
     }
 
     return (
-        <div className="p-6">
+        <div>
             {/* Heading */}
             <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -69,6 +77,7 @@ const AdminDepartmentPage = () => {
                             <th className="sm:px-4 px-2 py-3 text-left">Email</th>
                             <th className="sm:px-4 px-2 py-3 text-left">Phone</th>
                             <th className="sm:px-4 px-2 py-3 text-left">Address</th>
+                            <th className="sm:px-4 px-2 py-3 text-left">Service Area</th>
                             <th className="sm:px-4 px-2 py-3 text-left">Action</th>
 
                         </tr>
@@ -78,7 +87,7 @@ const AdminDepartmentPage = () => {
                         {loading ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="py-6 text-center text-gray-500"
                                 >
                                     Loading...
@@ -87,7 +96,7 @@ const AdminDepartmentPage = () => {
                         ) : departments.length === 0 ? (
                             <tr>
                                 <td
-                                    colSpan={6}
+                                    colSpan={7}
                                     className="py-6 text-center text-gray-500"
                                 >
                                     No departments found.
@@ -111,6 +120,9 @@ const AdminDepartmentPage = () => {
                                     </td>
                                     <td className="px-4 py-3">
                                         {department.address}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm">
+                                        {serviceAreaText(department.serviceArea)}
                                     </td>
 
                                     <td className="px-4 py-3">
@@ -141,11 +153,15 @@ const AdminDepartmentPage = () => {
 
             </div>
             {/* Department Modal */}
-            <DepartmentModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                editDepartment={editDepartment}
-            />
+            {/* Khulda matra mount: pratyek choti form naya data bata */}
+            {isModalOpen && (
+                <DepartmentModal
+                    key={editDepartment?._id || "new"}
+                    isOpen
+                    onClose={() => setIsModalOpen(false)}
+                    editDepartment={editDepartment}
+                />
+            )}
         </div>
     )
 }
