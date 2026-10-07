@@ -12,7 +12,12 @@ export default defineConfig({
       registerType: "autoUpdate",
 
       workbox: {
-        // ❌ navigateFallback: "/offline.html" हटाइएको
+        // SPA: refresh गर्दा सबै route मा index.html serve गर्ने (offline.html होइन)
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api/, /^\/firebase-messaging-sw\.js$/],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
 
         runtimeCaching: [
           {
@@ -22,11 +27,37 @@ export default defineConfig({
               cacheName: "images-cache",
             },
           },
+
+          // Emergency page ko public data: internet nabhaye pachhillo data dekhaune
           {
-            urlPattern: ({ request }) => request.destination === "document",
+            urlPattern: ({ url, request }) =>
+              request.method === "GET" &&
+              /^\/api\/(departments|emergency-services|notices)(\/|$|\?)/.test(
+                url.pathname,
+              ),
             handler: "NetworkFirst",
             options: {
-              cacheName: "pages-cache",
+              cacheName: "public-api-cache",
+              networkTimeoutSeconds: 10,
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+
+          // Map tiles (OpenStreetMap)
+          {
+            urlPattern: ({ url }) => url.hostname.endsWith("tile.openstreetmap.org"),
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "map-tiles-cache",
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+              },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],

@@ -11,7 +11,8 @@ const AuthProtectedRoute = ({ allowedRoles }) => {
     }
 
     if (!allowedRoles.includes(userInfo.role)) {
-        return <Navigate to="/unauthorized" replace />;
+        // Permission nabhaeko page ma gaye aafno role ko home ma pathaune
+        return <Navigate to={userInfo.role === "admin" ? "/admin" : "/"} replace />;
     }
 
     return <Outlet />;

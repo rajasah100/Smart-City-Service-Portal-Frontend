@@ -1,142 +1,65 @@
 import { useSelector } from "react-redux";
+import { useTranslation } from "react-i18next";
 import {
     Area,
     AreaChart,
     CartesianGrid,
+    Legend,
     ResponsiveContainer,
     Tooltip,
     XAxis,
     YAxis,
-    Legend,
 } from "recharts";
 
+// Pachhillo 6 mahina ko gunaso (mahina ra sal dubai milaera)
 const Charts = () => {
+    const { t, i18n } = useTranslation();
+    const locale = i18n.resolvedLanguage === "en" ? "en-US" : "ne-NP";
     const { myComplaints = [] } = useSelector((state) => state.complaint);
 
-    const months = [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-    ];
+    const now = new Date();
+    const filedLabel = t("userDash.chartFiled");
+    const resolvedLabel = t("userDash.chartResolved");
 
-    const currentMonth = new Date().getMonth();
+    const activityData = Array.from({ length: 6 }, (_, index) => {
+        const month = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
 
-    const activityData = [];
-
-    for (let i = 5; i >= 0; i--) {
-        const monthIndex = (currentMonth - i + 12) % 12;
-
-        const monthComplaints = myComplaints.filter((item) => {
-            const date = new Date(item.createdAt); // ✅ Fixed
-            return date.getMonth() === monthIndex;
+        const inMonth = myComplaints.filter((item) => {
+            const date = new Date(item.createdAt);
+            return date.getFullYear() === month.getFullYear() && date.getMonth() === month.getMonth();
         });
 
-        activityData.push({
-            month: months[monthIndex],
-            complaints: monthComplaints.length,
-            resolved: monthComplaints.filter(
-                (item) => item.status === "resolved"
-            ).length,
-        });
-    }
+        return {
+            month: month.toLocaleString(locale, { month: "short" }),
+            [filedLabel]: inMonth.length,
+            [resolvedLabel]: inMonth.filter((item) => item.status === "resolved").length,
+        };
+    });
 
     return (
-        <div className="w-full h-full">
-            <ResponsiveContainer width="100%" height={300}>
-                <AreaChart
-                    data={activityData}
-                    margin={{
-                        top: 10,
-                        right: 20,
-                        left: -15,
-                        bottom: 0,
-                    }}
-                >
-                    <defs>
-                        <linearGradient
-                            id="complaintsGradient"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                        >
-                            <stop offset="5%" stopColor="#4a6c8f" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#4a6c8f" stopOpacity={0} />
-                        </linearGradient>
+        <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={activityData} margin={{ top: 10, right: 16, left: -20, bottom: 0 }}>
+                <defs>
+                    <linearGradient id="filedFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#003893" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#003893" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="resolvedFill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                    </linearGradient>
+                </defs>
 
-                        <linearGradient
-                            id="resolvedGradient"
-                            x1="0"
-                            y1="0"
-                            x2="0"
-                            y2="1"
-                        >
-                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
-                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                        </linearGradient>
-                    </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0" }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
 
-                    <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#e5e7eb"
-                    />
-
-                    <XAxis
-                        dataKey="month"
-                        tick={{ fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                    />
-
-                    <YAxis
-                        allowDecimals={false}
-                        tick={{ fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                    />
-
-                    <Tooltip
-                        contentStyle={{
-                            borderRadius: "12px",
-                            border: "1px solid #e2e8f0",
-                            boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
-                        }}
-                    />
-
-                    <Legend />
-
-                    <Area
-                        type="monotone"
-                        dataKey="complaints"
-                        name="Filed"
-                        stroke="#4a6c8f"
-                        strokeWidth={3}
-                        fill="url(#complaintsGradient)"
-                        activeDot={{ r: 6 }}
-                    />
-
-                    <Area
-                        type="monotone"
-                        dataKey="resolved"
-                        name="Resolved"
-                        stroke="#22c55e"
-                        strokeWidth={3}
-                        fill="url(#resolvedGradient)"
-                        activeDot={{ r: 6 }}
-                    />
-                </AreaChart>
-            </ResponsiveContainer>
-        </div>
+                <Area type="monotone" dataKey={filedLabel} stroke="#003893" strokeWidth={2.5} fill="url(#filedFill)" />
+                <Area type="monotone" dataKey={resolvedLabel} stroke="#16a34a" strokeWidth={2.5} fill="url(#resolvedFill)" />
+            </AreaChart>
+        </ResponsiveContainer>
     );
 };
 

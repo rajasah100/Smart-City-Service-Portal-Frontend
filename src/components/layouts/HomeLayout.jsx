@@ -12,12 +12,15 @@ const HomeLayout = () => {
   return (
     <div>
       <Navbar />
-      <Outlet />
+
+      {/* Desktop ma GovHeader (h-19) ko lagi thau */}
+      <div className="md:pt-19 print:pt-0">
+        <Outlet />
+      </div>
+
       <Footer />
 
-      <FloatingAIButton 
-        onClick={() => setOpenAI(true)}
-      />
+      <FloatingAIButton onClick={() => setOpenAI(true)} hidden={openAI} />
 
       <AIChatDrawer
         open={openAI}

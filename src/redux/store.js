@@ -9,6 +9,7 @@ import notificationReducer from "./slices/notificationSlice"
 import departmentNotificationReducer from "./slices/departmentNotificationSlice"
 import aiReducer from "./slices/aiSlice";
 import eventReducer from "./slices/eventSlice"
+import settingReducer from "./slices/settingSlice"
 
 const store = configureStore({
     reducer: {
@@ -22,6 +23,7 @@ const store = configureStore({
         departmentNotification: departmentNotificationReducer,
         ai: aiReducer,
         event: eventReducer,
+        setting: settingReducer,
 
     },
 })

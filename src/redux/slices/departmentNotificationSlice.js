@@ -37,6 +37,20 @@ export const markAllDepartmentNotificationsRead = createAsyncThunk(
   },
 );
 
+// Ek notification padhieko banaune
+export const markDepartmentNotificationRead = createAsyncThunk(
+  "departmentNotification/readOne",
+  async (id, { rejectWithValue }) => {
+    try {
+      await departmentApiRequest.put(`/department-notifications/${id}/read`);
+
+      return id;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || error.message);
+    }
+  },
+);
+
 const departmentNotificationSlice = createSlice({
   name: "departmentNotification",
   initialState,

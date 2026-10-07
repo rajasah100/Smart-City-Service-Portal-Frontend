@@ -1,694 +1,281 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-    LuX,
-    LuUser,
-    LuBuilding2,
-    LuMail,
-    LuPhone,
-    LuCalendarDays,
-} from "react-icons/lu";
-
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-
-import L from "leaflet";
-import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
-import markerIcon from "leaflet/dist/images/marker-icon.png";
-import markerShadow from "leaflet/dist/images/marker-shadow.png";
-
-delete L.Icon.Default.prototype._getIconUrl;
-
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2x,
-    iconUrl: markerIcon,
-    shadowUrl: markerShadow,
-});
-
-import { updateComplaintStatus } from "../../redux/slices/complaintSlice";
-import { getDepartmentProfile } from "../../redux/slices/departmentSlice";
-import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import {
+    LuCheck,
+    LuNavigation,
+    LuFileText,
+    LuImage,
+    LuMail,
+    LuMapPin,
+    LuPhone,
+    LuSave,
+    LuUser,
+    LuX,
+} from "react-icons/lu";
+import { updateComplaintStatus } from "../../redux/slices/complaintSlice";
+import { formatBS } from "../../utils/nepaliDate";
+import { PRIORITY_STYLE, STATUSES, STATUS_STYLE, placeLine } from "./deptUtils";
 
-const statusColor = {
-    pending: "bg-yellow-100 text-yellow-700 border-yellow-300",
-    assigned: "bg-blue-100 text-blue-700 border-blue-300",
-    "in-progress": "bg-purple-100 text-purple-700 border-purple-300",
-    resolved: "bg-green-100 text-green-700 border-green-300",
-    rejected: "bg-red-100 text-red-700 border-red-300",
-};
+const Section = ({ icon: Icon, title, children }) => (
+    <section className="rounded-2xl border border-slate-200 bg-white">
+        <h3 className="flex items-center gap-2 border-b border-slate-100 px-5 py-3 text-sm font-bold text-slate-800">
+            <Icon className="text-[#003893]" />
+            {title}
+        </h3>
+        <div className="p-5">{children}</div>
+    </section>
+);
 
-const priorityColor = {
-    low: "bg-green-100 text-green-700",
-    medium: "bg-yellow-100 text-yellow-700",
-    high: "bg-orange-100 text-orange-700",
-    urgent: "bg-red-100 text-red-700",
-};
-
+// Gunaso ko pura vivaran ra avastha badalne (department)
 const ComplaintView = ({ complaint, onClose }) => {
     const dispatch = useDispatch();
-
-    const { department } = useSelector((state) => state.department)
-
-    useEffect(() => {
-        dispatch(getDepartmentProfile());
-    }, [dispatch])
-
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
+    const num = (n) => Number(n).toLocaleString(isEn ? "en-US" : "ne-NP");
     const { updateLoading } = useSelector((state) => state.complaint);
 
-    // Initialize hooks from complaint if available
-    const [status, setStatus] = useState(complaint?.status || "pending");
+    const [status, setStatus] = useState(complaint.status || "pending");
+    const [note, setNote] = useState(complaint.resolutionNote || "");
+    const needsNote = status === "resolved" || status === "rejected";
 
-    const [resolutionNote, setResolutionNote] = useState(
-        complaint?.resolutionNote || ""
-    );
+    // Esc le band
+    useEffect(() => {
+        const onKey = (e) => e.key === "Escape" && onClose();
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [onClose]);
 
-
-    if (!complaint) return null;
+    const lat = Number(complaint.location?.latitude);
+    const lng = Number(complaint.location?.longitude);
+    const hasMap = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0);
+    const dateTime = (value) =>
+        `${formatBS(value, isEn)}, ${new Date(value).toLocaleTimeString(isEn ? "en-US" : "ne-NP", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })}`;
 
     const handleSave = async () => {
+        if (status === complaint.status && (!needsNote || note.trim() === (complaint.resolutionNote || ""))) {
+            toast.info(t("deptDash.view.unchanged"));
+            return;
+        }
 
-        if (
-            (status === "resolved" || status === "rejected") &&
-            !resolutionNote.trim()
-        ) {
-            toast.error("Resolution note is required.");
+        if (needsNote && !note.trim()) {
+            toast.error(t("deptDash.view.noteRequired"));
             return;
         }
 
         try {
-
-            await dispatch(
-                updateComplaintStatus({
-                    id: complaint._id,
-                    status,
-                    resolutionNote,
-                })
-            ).unwrap();
-
-            toast.success("Complaint status updated successfully!");
+            await dispatch(updateComplaintStatus({ id: complaint._id, status, resolutionNote: needsNote ? note : "" })).unwrap();
+            toast.success(t("deptDash.view.saved"));
             onClose();
-
-        } catch (err) {
-            toast.error(err || "Failed to update complaint.");
+        } catch (error) {
+            toast.error(error?.message || t("deptDash.view.failed"));
         }
     };
 
+    const timeline = [
+        { label: t("deptDash.view.submitted"), date: complaint.createdAt, dot: "bg-[#003893]" },
+        complaint.updatedAt && complaint.updatedAt !== complaint.createdAt && { label: t("deptDash.view.updated"), date: complaint.updatedAt, dot: "bg-slate-400" },
+        complaint.resolvedAt && { label: t("deptDash.view.resolvedAt"), date: complaint.resolvedAt, dot: "bg-green-600" },
+    ].filter(Boolean);
 
-
-    return (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-
-            <div className="bg-slate-50 w-full max-w-7xl rounded-2xl shadow-2xl overflow-y-auto max-h-[95vh] relative">
-
-                {/* Close Button */}
-
-                <button
-                    onClick={onClose}
-                    className="absolute right-5 top-5 bg-red-500 hover:bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center"
-                >
-                    <LuX size={20} />
-                </button>
-
+    // Body ma render: layout ko animation (transform) le fixed modal lai main bhitra nathunos
+    return createPortal(
+        <div className="fixed inset-0 z-60 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={t("deptDash.view.title")}
+                onClick={(e) => e.stopPropagation()}
+                className="animate-fade-up flex max-h-[95vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl bg-slate-50 shadow-2xl sm:rounded-2xl"
+            >
                 {/* Header */}
+                <header className="relative shrink-0 bg-linear-to-r from-[#002a6e] to-[#003893] px-5 py-5 text-white sm:px-7">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-[#dc143c]" />
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label={t("deptDash.view.close")}
+                        className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+                    >
+                        <LuX size={18} />
+                    </button>
 
-                <div className="bg-linear-to-r from-[#0f4c81] to-[#2d6fa8] text-white p-8">
-
-                    <div className="flex justify-between items-center flex-wrap gap-4">
-
-                        <div>
-
-                            <h1 className="text-3xl font-bold">
-                                Complaint Details
-                            </h1>
-
-                            <p className="text-blue-100 mt-2">
-                                {complaint.complaintId}
-                            </p>
-
-                        </div>
-
-                        <div className="flex gap-3">
-
-                            <span
-                                className={`px-5 py-2 rounded-full border capitalize font-semibold ${statusColor[status]}`}
-                            >
-                                {status}
-                            </span>
-
-                            <span
-                                className={`px-5 py-2 rounded-full capitalize font-semibold ${priorityColor[complaint.priority]}`}
-                            >
-                                {complaint.priority}
-                            </span>
-
-                        </div>
-
+                    <p className="font-mono text-sm text-white/70">{complaint.complaintId}</p>
+                    <h2 className="mt-1 pr-10 text-xl font-bold sm:text-2xl">{complaint.title}</h2>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className={`rounded-full px-3 py-1 ring-1 ${STATUS_STYLE[complaint.status]?.badge}`}>{t(`userDash.status.${complaint.status}`)}</span>
+                        <span className={`rounded-full px-3 py-1 ${PRIORITY_STYLE[complaint.priority]?.badge}`}>{t(`userDash.priority.${complaint.priority}`)}</span>
+                        <span className="rounded-full bg-white/10 px-3 py-1 text-white/90">{formatBS(complaint.createdAt, isEn)}</span>
                     </div>
-
-                </div>
+                </header>
 
                 {/* Body */}
+                <div className="grid flex-1 gap-5 overflow-y-auto p-4 sm:p-6 lg:grid-cols-5">
+                    <div className="space-y-5 lg:col-span-3">
+                        <Section icon={LuFileText} title={t("deptDash.view.complaint")}>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t("deptDash.view.description")}</p>
+                            <p className="mt-1 whitespace-pre-line text-sm leading-7 text-slate-700">{complaint.description}</p>
+                        </Section>
 
-                <div className="p-8 space-y-8">
-
-                    {/* Citizen + Department */}
-
-                    <div className="grid lg:grid-cols-2 gap-6">
-
-                        {/* Citizen */}
-
-                        <div className="bg-white rounded-xl shadow border">
-
-                            <div className="border-b px-6 py-4">
-                                <h2 className="text-lg font-bold flex items-center gap-2">
-                                    <LuUser />
-                                    Citizen Information
-                                </h2>
-                            </div>
-
-                            <div className="p-6">
-
-                                <div className="flex items-center gap-4">
-
-                                    <div className="w-16 h-16 rounded-full bg-[#0f4c81] text-white flex items-center justify-center text-2xl font-bold">
-
-                                        {complaint.user?.name
-                                            ? complaint.user.name.charAt(0).toUpperCase()
-                                            : "U"}
-
-                                    </div>
-
-                                    <div>
-
-                                        <h2 className="font-bold text-xl">
-                                            {complaint.user?.name || "Unknown User"}
-                                        </h2>
-
-                                        <p className="text-slate-500">
-                                            Registered Citizen
-                                        </p>
-
-                                    </div>
-
+                        {complaint.images?.length > 0 && (
+                            <Section icon={LuImage} title={t("deptDash.view.photos", { count: num(complaint.images.length) })}>
+                                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                                    {complaint.images.map((image, index) => (
+                                        <a key={image.url || index} href={image.url} target="_blank" rel="noreferrer" className="group block overflow-hidden rounded-xl border border-slate-200">
+                                            <img src={image.url} alt="" className="aspect-square w-full object-cover transition duration-300 group-hover:scale-105" />
+                                        </a>
+                                    ))}
                                 </div>
+                            </Section>
+                        )}
 
-                                <div className="mt-8 space-y-5">
+                        <Section icon={LuMapPin} title={t("deptDash.view.place")}>
+                            <p className="text-sm font-medium text-slate-800">{placeLine(complaint.location, isEn, num) || "-"}</p>
 
-                                    <div className="flex gap-3 items-center">
-
-                                        <LuMail className="text-[#0f4c81]" />
-
-                                        <span>
-                                            {complaint.user?.email || "N/A"}
-                                        </span>
-
+                            {hasMap ? (
+                                <>
+                                    <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+                                        <MapContainer center={[lat, lng]} zoom={16} scrollWheelZoom={false} className="z-0 h-64 w-full">
+                                            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                            <Marker position={[lat, lng]} />
+                                        </MapContainer>
                                     </div>
-
-                                    <div className="flex gap-3 items-center">
-
-                                        <LuPhone className="text-[#0f4c81]" />
-
-                                        <span>
-                                            {complaint.user?.phone || "N/A"}
-                                        </span>
-
-                                    </div>
-
-                                    <div className="flex gap-3 items-center">
-
-                                        <LuCalendarDays className="text-[#0f4c81]" />
-
-                                        <span>
-                                            {new Date(
-                                                complaint.createdAt
-                                            ).toLocaleDateString()}
-                                        </span>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                        {/* Department */}
-
-                        <div className="bg-white rounded-xl border shadow-sm">
-
-                            <div className="border-b px-6 py-4">
-                                <h3 className="text-lg font-bold flex items-center gap-2">
-                                    <LuBuilding2 />
-                                    Department Information
-                                </h3>
-                            </div>
-
-                            <div className="p-6">
-
-                                <div className="flex items-center gap-4 mb-6">
-
-                                    <div className="w-16 h-16 rounded-full bg-[#0f4c81] text-white flex items-center justify-center text-2xl font-bold">
-                                        {department?.name?.charAt(0)}
-                                    </div>
-
-                                    <div>
-
-                                        <h2 className="text-xl font-bold">
-                                            {department?.name || "Department"}
-                                        </h2>
-
-                                        <p className="text-slate-500">
-                                            Responsible Department
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
-                                <div className="space-y-4">
-
-                                    <div className="space-y-4">
-
-                                        <div className="flex items-center gap-3">
-                                            <LuMail className="text-[#0f4c81]" />
-                                            <span>{department?.email || "N/A"}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <LuPhone className="text-[#0f4c81]" />
-                                            <span>{department?.phone || "N/A"}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-3">
-                                            <LuBuilding2 className="text-[#0f4c81]" />
-                                            <span>{department?.address || "N/A"}</span>
-                                        </div>
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    {/* Complaint Information */}
-
-                    <div className="bg-white rounded-xl shadow border">
-
-                        <div className="border-b px-6 py-4">
-                            <h2 className="text-lg font-bold">
-                                Complaint Information
-                            </h2>
-                        </div>
-
-                        <div className="p-6 space-y-6">
-
-                            {/* Title */}
-
-                            <div>
-
-                                <label className="font-semibold text-slate-700">
-                                    Complaint Title
-                                </label>
-
-                                <div className="mt-2 p-4 rounded-lg bg-slate-50 border">
-                                    {complaint.title}
-                                </div>
-
-                            </div>
-
-                            {/* Description */}
-
-                            <div>
-
-                                <label className="font-semibold text-slate-700">
-                                    Description
-                                </label>
-
-                                <div className="mt-2 p-4 rounded-lg bg-slate-50 border leading-7">
-                                    {complaint.description}
-                                </div>
-
-                            </div>
-
-                            {/* Priority */}
-
-                            <div>
-
-                                <label className="font-semibold text-slate-700">
-                                    Priority
-                                </label>
-
-                                <div className="mt-2">
-
-                                    <span
-                                        className={`px-4 py-2 rounded-full font-semibold capitalize ${priorityColor[complaint.priority]}`}
-                                    >
-                                        {complaint.priority}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
-                            {/* Status */}
-
-                            <div>
-
-                                <label className="font-semibold text-slate-700 block mb-2">
-                                    Update Complaint Status
-                                </label>
-
-                                <select
-                                    value={status}
-                                    onChange={(e) => {
-                                        const newStatus = e.target.value;
-
-                                        setStatus(newStatus);
-
-                                        if (
-                                            newStatus !== "resolved" &&
-                                            newStatus !== "rejected"
-                                        ) {
-                                            setResolutionNote("");
-                                        }
-                                    }}
-                                    className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-slate-700 font-medium outline-none transition focus:ring-2 focus:ring-[#0f4c81] focus:border-[#0f4c81] cursor-pointer"
-                                >
-                                    <option value="pending">Pending</option>
-                                    <option value="assigned">Assigned</option>
-                                    <option value="in-progress">In Progress</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="rejected">Rejected</option>
-                                </select>
-
-                            </div>
-
-                            {/* Resolution */}
-
-                            {(status === "resolved" || status === "rejected") && (
-                                <div>
-                                    <label className="font-semibold block mb-2">
-                                        Resolution Note
-                                    </label>
-
-                                    <textarea
-                                        rows={5}
-                                        value={resolutionNote}
-                                        onChange={(e) => setResolutionNote(e.target.value)}
-                                        placeholder="Write resolution..."
-                                        className="w-full border rounded-xl p-4"
-                                    />
-                                </div>
-                            )}
-
-
-                        </div>
-
-                    </div>
-
-                    {/* ================= Location ================= */}
-
-                    <div className="bg-white rounded-xl shadow border">
-
-                        <div className="border-b px-6 py-4">
-                            <h2 className="text-xl font-bold">
-                                📍 Complaint Location
-                            </h2>
-                        </div>
-
-                        <div className="p-6 grid lg:grid-cols-2 gap-6">
-
-                            {/* Location Details */}
-                            <div className="space-y-4">
-
-                                <div className="grid grid-cols-2 gap-4">
-
-                                    <div className="bg-slate-50 p-4 rounded-lg">
-                                        <p className="text-sm text-slate-500">Province</p>
-                                        <p className="font-semibold">{complaint.location?.province}</p>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-4 rounded-lg">
-                                        <p className="text-sm text-slate-500">District</p>
-                                        <p className="font-semibold">{complaint.location?.district}</p>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-4 rounded-lg">
-                                        <p className="text-sm text-slate-500">Municipality</p>
-                                        <p className="font-semibold">{complaint.location?.municipality}</p>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-4 rounded-lg">
-                                        <p className="text-sm text-slate-500">Ward</p>
-                                        <p className="font-semibold">{complaint.location?.ward}</p>
-                                    </div>
-
-                                </div>
-
-                                <div className="bg-slate-50 p-4 rounded-lg">
-                                    <p className="text-sm text-slate-500">Tole</p>
-                                    <p className="font-semibold">
-                                        {complaint.location?.tole}
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-
-                                    <div className="bg-slate-50 p-4 rounded-lg">
-                                        <p className="text-sm text-slate-500">
-                                            Latitude
-                                        </p>
-
-                                        <p className="font-semibold">
-                                            {complaint.location?.latitude}
-                                        </p>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-4 rounded-lg">
-                                        <p className="text-sm text-slate-500">
-                                            Longitude
-                                        </p>
-
-                                        <p className="font-semibold">
-                                            {complaint.location?.longitude}
-                                        </p>
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                            {/* Interactive Map */}
-
-                            <div className="rounded-xl overflow-hidden border shadow h-105">
-
-                                <MapContainer
-                                    center={[
-                                        Number(complaint.location.latitude),
-                                        Number(complaint.location.longitude),
-                                    ]}
-                                    zoom={17}
-                                    scrollWheelZoom={true}
-                                    className="h-full w-full"
-                                >
-
-                                    <TileLayer
-                                        attribution="&copy; OpenStreetMap contributors"
-                                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                    />
-
-                                    <Marker
-                                        position={[
-                                            Number(complaint.location.latitude),
-                                            Number(complaint.location.longitude),
-                                        ]}
-                                    >
-
-                                        <Popup>
-
-                                            <div className="space-y-2">
-
-                                                <h3 className="font-bold text-lg">
-                                                    {complaint.title}
-                                                </h3>
-
-                                                <p>
-                                                    {complaint.location.municipality}
-                                                </p>
-
-                                                <p>
-                                                    Ward {complaint.location.ward}
-                                                </p>
-
-                                                <p className="text-red-500 font-semibold">
-                                                    Complaint Location
-                                                </p>
-
-                                            </div>
-
-                                        </Popup>
-
-                                    </Marker>
-
-                                </MapContainer>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                    {/* ================= Images ================= */}
-
-                    {complaint.images?.length > 0 && (
-
-                        <div className="bg-white rounded-xl shadow border mt-6">
-
-                            <div className="border-b px-6 py-4">
-                                <h2 className="text-lg font-bold">
-                                    Complaint Images
-                                </h2>
-                            </div>
-
-                            <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-
-                                {complaint.images.map((image, index) => (
-
                                     <a
-                                        key={index}
-                                        href={image.url}
+                                        href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
                                         target="_blank"
                                         rel="noreferrer"
+                                        className="mt-3 inline-flex items-center gap-2 rounded-xl border border-[#003893] px-4 py-2 text-sm font-semibold text-[#003893] transition hover:bg-[#003893] hover:text-white"
                                     >
-                                        <img
-                                            src={image.url}
-                                            alt="Complaint"
-                                            className="rounded-xl h-48 w-full object-cover hover:scale-105 transition"
-                                        />
+                                        <LuNavigation />
+                                        {t("deptDash.view.directions")}
                                     </a>
+                                </>
+                            ) : (
+                                <p className="mt-2 text-sm text-slate-500">{t("deptDash.view.noLocation")}</p>
+                            )}
+                        </Section>
+                    </div>
 
-                                ))}
-
+                    <div className="space-y-5 lg:col-span-2">
+                        {/* Nagarik */}
+                        <Section icon={LuUser} title={t("deptDash.view.citizen")}>
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#003893] text-lg font-bold text-white">
+                                    {complaint.user?.avatar ? (
+                                        <img src={complaint.user.avatar} alt="" className="h-full w-full object-cover" />
+                                    ) : (
+                                        complaint.user?.name?.charAt(0).toUpperCase() || "?"
+                                    )}
+                                </span>
+                                <p className="font-semibold text-slate-900">{complaint.user?.name || t("deptDash.complaints.unknownUser")}</p>
                             </div>
 
-                        </div>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {(complaint.phone || complaint.user?.phone) && (
+                                    <a
+                                        href={`tel:${complaint.phone || complaint.user.phone}`}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
+                                    >
+                                        <LuPhone />
+                                        {complaint.phone || complaint.user.phone}
+                                    </a>
+                                )}
+                                {complaint.user?.email && (
+                                    <a
+                                        href={`mailto:${complaint.user.email}`}
+                                        className="inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                                    >
+                                        <LuMail className="shrink-0" />
+                                        <span className="truncate">{complaint.user.email}</span>
+                                    </a>
+                                )}
+                            </div>
+                        </Section>
 
-                    )}
+                        {/* Avastha */}
+                        <Section icon={LuCheck} title={t("deptDash.view.updateTitle")}>
+                            <p className="-mt-1 mb-3 text-xs text-slate-500">{t("deptDash.view.updateText")}</p>
 
-                    {/* ================= Timeline ================= */}
-
-                    <div className="bg-white rounded-xl shadow border mt-6">
-
-                        <div className="border-b px-6 py-4">
-                            <h2 className="text-lg font-bold">
-                                Complaint Timeline
-                            </h2>
-                        </div>
-
-                        <div className="p-6 space-y-5">
-
-                            <div className="flex gap-4">
-
-                                <div className="w-4 h-4 rounded-full bg-green-500 mt-2"></div>
-
-                                <div>
-
-                                    <p className="font-semibold">
-                                        Complaint Submitted
-                                    </p>
-
-                                    <p className="text-sm text-slate-500">
-                                        {new Date(
-                                            complaint.createdAt
-                                        ).toLocaleString()}
-                                    </p>
-
-                                </div>
-
+                            <div role="radiogroup" className="space-y-2">
+                                {STATUSES.map((value) => {
+                                    const active = status === value;
+                                    return (
+                                        <button
+                                            key={value}
+                                            type="button"
+                                            role="radio"
+                                            aria-checked={active}
+                                            onClick={() => setStatus(value)}
+                                            className={`flex w-full items-center gap-3 rounded-xl border-2 px-3.5 py-2.5 text-left text-sm font-medium transition ${
+                                                active ? "border-[#003893] bg-[#003893]/5 text-slate-900" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                            }`}
+                                        >
+                                            <span className={`h-2.5 w-2.5 rounded-full ${STATUS_STYLE[value].dot}`} />
+                                            <span className="flex-1">{t(`userDash.status.${value}`)}</span>
+                                            {active && <LuCheck className="text-[#003893]" />}
+                                        </button>
+                                    );
+                                })}
                             </div>
 
-                            <div className="flex gap-4">
-
-                                <div className="w-4 h-4 rounded-full bg-blue-500 mt-2"></div>
-
-                                <div>
-
-                                    <p className="font-semibold">
-                                        Last Updated
-                                    </p>
-
-                                    <p className="text-sm text-slate-500">
-                                        {new Date(
-                                            complaint.updatedAt
-                                        ).toLocaleString()}
-                                    </p>
-
+                            {needsNote && (
+                                <div className="animate-fade-up mt-4">
+                                    <label htmlFor="resolution-note" className="mb-1.5 block text-sm font-semibold text-slate-700">
+                                        {t("deptDash.view.noteLabel")} <span className="text-[#dc143c]">*</span>
+                                    </label>
+                                    <textarea
+                                        id="resolution-note"
+                                        rows={4}
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                        placeholder={t("deptDash.view.notePlaceholder")}
+                                        className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm outline-none transition focus:border-[#003893] focus:ring-2 focus:ring-[#003893]/20"
+                                    />
                                 </div>
-
-                            </div>
-
-                            {complaint.resolutionNote && (
-
-                                <div className="flex gap-4">
-
-                                    <div className="w-4 h-4 rounded-full bg-green-600 mt-2"></div>
-
-                                    <div>
-
-                                        <p className="font-semibold">
-                                            Resolution Note
-                                        </p>
-
-                                        <p className="text-sm text-slate-600">
-                                            {complaint.resolutionNote}
-                                        </p>
-
-                                    </div>
-
-                                </div>
-
                             )}
 
-                        </div>
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={updateLoading}
+                                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#003893] py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#002a6e] disabled:opacity-60"
+                            >
+                                {updateLoading ? (
+                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                ) : (
+                                    <LuSave />
+                                )}
+                                {updateLoading ? t("deptDash.view.saving") : t("deptDash.view.save")}
+                            </button>
+                        </Section>
 
+                        {/* Samayarekha */}
+                        <Section icon={LuFileText} title={t("deptDash.view.timeline")}>
+                            <ol className="relative space-y-4 border-l-2 border-slate-200 pl-5">
+                                {timeline.map((item) => (
+                                    <li key={item.label} className="relative">
+                                        <span className={`absolute -left-6.5 top-1 h-3 w-3 rounded-full ring-4 ring-white ${item.dot}`} />
+                                        <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                                        <p className="text-xs text-slate-500">{dateTime(item.date)}</p>
+                                    </li>
+                                ))}
+                            </ol>
+
+                            {complaint.resolutionNote && (
+                                <div className="mt-4 rounded-xl bg-slate-50 p-3">
+                                    <p className="text-xs font-semibold text-slate-500">{t("deptDash.view.note")}</p>
+                                    <p className="mt-1 whitespace-pre-line text-sm text-slate-700">{complaint.resolutionNote}</p>
+                                </div>
+                            )}
+                        </Section>
                     </div>
-
-                    {/* ================= Footer ================= */}
-
-                    <div className="flex justify-end gap-4 mt-8">
-
-                        <button
-                            onClick={onClose}
-                            className="px-6 py-3 rounded-xl border font-semibold hover:bg-slate-100"
-                        >
-                            Close
-                        </button>
-
-                        <button
-                            onClick={handleSave}
-                            disabled={
-                                updateLoading ||
-                                (
-                                    (status === "resolved" || status === "rejected")
-                                    && !resolutionNote.trim()
-                                )
-                            }
-                        >
-                            {updateLoading ? "Saving..." : "Save Changes"}
-                        </button>
-
-                    </div>
-
                 </div>
-
             </div>
-
-        </div>
+        </div>,
+        document.body
     );
 };
 

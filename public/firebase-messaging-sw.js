@@ -20,13 +20,35 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  console.log("Background Notification:", payload);
+  // "notification" bhaeko message Firebase aafai dekhaucha.
+  // Feri showNotification gare ekai notification duichoti aaucha, tyasaile data-only message matra yaha dekhaune
+  if (payload.notification) return;
 
-  self.registration.showNotification(
-    payload.notification.title,
-    {
-      body: payload.notification.body,
-      icon: "/logo.png", // optional
-    }
+  const { title, body } = payload.data || {};
+
+  if (!title) return;
+
+  self.registration.showNotification(title, {
+    body,
+    icon: "/logo.png",
+    data: payload.data,
+  });
+});
+
+// Notification click garda khulla tab ma focus garne, natra website kholne
+// (https link bhaeko SOS notification Firebase aafai sahi page ma kholcha)
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        const existing = clientList.find((client) => "focus" in client);
+
+        if (existing) return existing.focus();
+
+        return self.clients.openWindow("/");
+      })
   );
 });

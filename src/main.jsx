@@ -4,6 +4,7 @@ import './index.css'
 import "leaflet/dist/leaflet.css";
 import "./utils/leafletIcon";
 import App from './App.jsx'
+import "./i18n";
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";

@@ -13,8 +13,9 @@
 
   html,
   body {
-    width: 210mm;
-    height: 297mm;
+    /* 210mm x 297mm + printer ko margin le daya tira katthyo ra khali dosro page banthyo, tyasaile auto */
+    width: auto;
+    height: auto;
     background: white !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -26,7 +27,217 @@
     display: none !important;
   }
 
-  .print-hidden {
+  .print-hidden,
+  .Toastify {
     display: none !important;
+  }
+}
+
+/* ===== Halka animation (sarkari site: thorai, chhito, ra reduced-motion ma band) ===== */
+
+/* Scroll garda content bistarai dekhine (Reveal component) */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* सूचना ticker */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-track {
+  animation: ticker-scroll var(--ticker-duration, 40s) linear infinite;
+}
+
+.ticker:hover .ticker-track,
+.ticker:focus-within .ticker-track {
+  animation-play-state: paused;
+}
+
+/* Hero ko text tala bata mathi aaune */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s ease both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Gunaso prakriya: step jodne rekha (section dekhiepachi tanincha) */
+.process-line {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.2s ease 0.3s;
+}
+
+.process-line-vertical {
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 1.2s ease 0.3s;
+}
+
+.is-visible .process-line {
+  transform: scaleX(1);
+}
+
+.is-visible .process-line-vertical {
+  transform: scaleY(1);
+}
+
+/* Notification dropdown khulda halka scale/fade, item ek-ek gari */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dropdown-in {
+  animation: dropdown-in 0.18s ease-out both;
+}
+
+.dropdown-item-in {
+  animation: fade-up 0.3s ease both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* ===== AI sahayak ===== */
+
+/* Ghumne gradient "orb" (AI ko avatar) */
+.ai-orb {
+  background: conic-gradient(from var(--ai-angle, 0deg), #003893, #2563eb, #dc143c, #f59e0b, #003893);
+  animation: ai-spin 6s linear infinite;
+}
+
+.ai-orb-inner {
+  background: radial-gradient(circle at 30% 25%, #ffffff 0%, #e0e7ff 45%, #c7d2fe 100%);
+}
+
+@property --ai-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes ai-spin {
+  to {
+    --ai-angle: 360deg;
+  }
+}
+
+/* Button ko chamkine ring */
+.ai-glow::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  background: conic-gradient(from var(--ai-angle, 0deg), #2563eb, #dc143c, #f59e0b, #2563eb);
+  filter: blur(10px);
+  opacity: 0.55;
+  z-index: -1;
+  animation: ai-spin 4s linear infinite;
+}
+
+/* Sandesh aaunda halka pop */
+.ai-pop {
+  animation: ai-pop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes ai-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* "Sochdai" ko chamkine text */
+.ai-shimmer {
+  background: linear-gradient(90deg, #64748b 0%, #003893 40%, #64748b 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ai-shimmer 1.6s linear infinite;
+}
+
+@keyframes ai-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* Typewriter ko cursor */
+.ai-caret::after {
+  content: "▍";
+  margin-left: 1px;
+  color: #003893;
+  animation: ai-blink 1s steps(2) infinite;
+}
+
+@keyframes ai-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Phone/computer ma "Reduce motion" on gareka user lai animation band */
+@media (prefers-reduced-motion: reduce) {
+  .ai-orb,
+  .ai-glow::before,
+  .ai-pop,
+  .ai-shimmer,
+  .ai-caret::after {
+    animation: none;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .ticker-track {
+    animation: none;
+  }
+
+  .animate-fade-up,
+  .dropdown-in,
+  .dropdown-item-in {
+    animation: none;
+  }
+
+  .process-line,
+  .process-line-vertical {
+    transform: none;
+    transition: none;
   }
 }

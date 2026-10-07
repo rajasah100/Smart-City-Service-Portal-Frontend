@@ -1,46 +1,73 @@
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
-function LocationMarker({ position, setPosition }) {
+// Default: Bhaktapur (portal ko thegana)
+const DEFAULT_CENTER = [27.6722, 85.428];
+
+// Position badlida (GPS, click, drag) naksa tyahi sarne
+function FollowPosition({ position }) {
     const map = useMap();
+    const lat = position?.[0];
+    const lng = position?.[1];
 
+    useEffect(() => {
+        if (lat == null || lng == null) return;
+        map.flyTo([lat, lng], Math.max(map.getZoom(), 17), { duration: 0.8 });
+    }, [map, lat, lng]);
+
+    return null;
+}
+
+// Dropdown bata thau chhanda pin nalagai tyo thau ma zoom (focus: { center, zoom })
+function FollowFocus({ focus }) {
+    const map = useMap();
+    const lat = focus?.center[0];
+    const lng = focus?.center[1];
+    const zoom = focus?.zoom;
+
+    useEffect(() => {
+        if (lat == null || lng == null) return;
+        map.flyTo([lat, lng], zoom, { duration: 0.8 });
+    }, [map, lat, lng, zoom]);
+
+    return null;
+}
+
+function ClickToPin({ onChange }) {
     useMapEvents({
         click(e) {
-            const newPosition = [e.latlng.lat, e.latlng.lng];
-
-            setPosition(newPosition);
-
-            map.flyTo(newPosition, 17, {
-                animate: true,
-            });
+            onChange([e.latlng.lat, e.latlng.lng]);
         },
     });
 
-    return position ? (
-        <Marker position={position} />
-    ) : null;
+    return null;
 }
 
-export default function LocationMap({
-    position,
-    setPosition,
-}) {
-
+// position: [lat, lng] wa null. Marker tanera pani sarna milcha
+export default function LocationMap({ position, focus, onChange }) {
     return (
-        <MapContainer
-            center={position}
-            zoom={13}
-            scrollWheelZoom={true}
-            className="w-full h-112.5 rounded-xl border border-gray-300 shadow-md z-0"
-        >
+        <MapContainer center={position || DEFAULT_CENTER} zoom={position ? 17 : 14} scrollWheelZoom className="z-0 h-80 w-full sm:h-96">
             <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <LocationMarker
-                position={position}
-                setPosition={setPosition}
-            />
+            <ClickToPin onChange={onChange} />
+            <FollowFocus focus={focus} />
+            <FollowPosition position={position} />
+
+            {position && (
+                <Marker
+                    position={position}
+                    draggable
+                    eventHandlers={{
+                        dragend: (e) => {
+                            const { lat, lng } = e.target.getLatLng();
+                            onChange([lat, lng]);
+                        },
+                    }}
+                />
+            )}
         </MapContainer>
     );
 }

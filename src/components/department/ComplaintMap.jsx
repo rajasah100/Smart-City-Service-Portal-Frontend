@@ -1,196 +1,96 @@
-import { useEffect, useState } from "react";
-import {
-    MapContainer,
-    TileLayer,
-    Marker,
-    Popup,
-    useMap,
-    Tooltip,
-} from "react-leaflet";
-
+import { useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
+import { STATUS_STYLE, hasLocation, placeLine } from "./deptUtils";
 
-import "leaflet/dist/leaflet.css";
+// Default: Koshi/Nepal ko bich (gunaso nabhae)
+const NEPAL_CENTER = [28.2, 84.1];
 
-import {
-    LuNavigation,
-    LuUser,
-    LuCircleAlert,
-} from "react-icons/lu";
+const pinIcon = (color, active) =>
+    L.divIcon({
+        className: "",
+        html: `<span style="display:block;width:${active ? 26 : 20}px;height:${active ? 26 : 20}px;border-radius:9999px;background:${color};border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.45)"></span>`,
+        iconSize: active ? [26, 26] : [20, 20],
+        iconAnchor: active ? [13, 13] : [10, 10],
+        popupAnchor: [0, -12],
+    });
 
-delete L.Icon.Default.prototype._getIconUrl;
-
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-
-    iconUrl:
-        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-
-    shadowUrl:
-        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-function FlyToComplaint({ complaint }) {
+// Sabai gunaso dekhine gari zoom, chhaneko gunaso ma udera jane
+// boundsKey: "lat,lng|lat,lng" (array ko satta string: point nabadlie pheri zoom nahos)
+function FitAndFly({ boundsKey, selected }) {
     const map = useMap();
 
     useEffect(() => {
-        if (!complaint) return;
+        if (!boundsKey) return;
+        const points = boundsKey.split("|").map((pair) => pair.split(",").map(Number));
+        if (points.length === 1) map.setView(points[0], 15);
+        else map.fitBounds(points, { padding: [40, 40], maxZoom: 15 });
+    }, [map, boundsKey]);
 
-        map.flyTo(
-            [
-                complaint.location.latitude,
-                complaint.location.longitude,
-            ],
-            17,
-            {
-                duration: 1.5,
-            }
-        );
-    }, [complaint, map]);
+    useEffect(() => {
+        if (selected) map.flyTo(selected.split(",").map(Number), 17, { duration: 1 });
+    }, [map, selected]);
 
     return null;
 }
 
-const ComplaintMap = ({
-    complaints,
-    selectedComplaint,
-}) => {
+const ComplaintMap = ({ complaints, selectedId, onSelect }) => {
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
+    const num = (n) => Number(n).toLocaleString(isEn ? "en-US" : "ne-NP");
 
-    const [currentLocation, setCurrentLocation] = useState(null);
+    const mapped = useMemo(() => complaints.filter(hasLocation), [complaints]);
+    const boundsKey = mapped.map((c) => `${Number(c.location.latitude)},${Number(c.location.longitude)}`).join("|");
+    const selected = mapped.find((c) => c._id === selectedId);
+    const selectedPoint = selected ? `${Number(selected.location.latitude)},${Number(selected.location.longitude)}` : "";
 
-    useEffect(() => {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setCurrentLocation([
-                    position.coords.latitude,
-                    position.coords.longitude,
-                ]);
-            },
-            (err) => console.log(err),
-            {
-                enableHighAccuracy: true,
-            }
-        );
-    }, []);
     return (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+        <MapContainer center={NEPAL_CENTER} zoom={7} scrollWheelZoom className="z-0 h-full min-h-105 w-full">
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <FitAndFly boundsKey={boundsKey} selected={selectedPoint} />
 
-            <div className="border-b px-6 py-4">
-
-                <h2 className="text-lg font-bold">
-                    Complaint Map
-                </h2>
-
-                <p className="text-sm text-slate-500 mt-1">
-                    Click any complaint to locate it.
-                </p>
-
-            </div>
-
-            <MapContainer
-                center={currentLocation || [27.7172, 85.324]}
-                zoom={7}
-                scrollWheelZoom
-                style={{
-                    height: "700px",
-                    width: "100%",
-                }}
-            >
-
-                <TileLayer
-                    attribution="OpenStreetMap"
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-
-                <FlyToComplaint complaint={selectedComplaint} />
-
-                {complaints.map((complaint) => (
-
+            {mapped.map((complaint) => {
+                const lat = Number(complaint.location.latitude);
+                const lng = Number(complaint.location.longitude);
+                return (
                     <Marker
                         key={complaint._id}
-                        position={[
-                            complaint.location.latitude,
-                            complaint.location.longitude,
-                        ]}
+                        position={[lat, lng]}
+                        icon={pinIcon(STATUS_STYLE[complaint.status]?.color || "#003893", complaint._id === selectedId)}
+                        eventHandlers={{ click: () => onSelect(complaint._id) }}
                     >
-
-                        <Tooltip
-                            direction="top"
-                            offset={[0, -20]}
-                            opacity={1}
-                            permanent
-                        >
-                            <div className="font-semibold text-xs">
-                                {complaint.title}
-                            </div>
-                        </Tooltip>
-
                         <Popup>
-
-                            <div className="w-64">
-
-                                <h2 className="font-bold text-lg mb-2">
-                                    {complaint.title}
-                                </h2>
-
-                                <p className="text-sm text-slate-600 mb-3">
-                                    {complaint.description}
-                                </p>
-
-                                <div className="space-y-2">
-
-                                    <div className="flex items-center gap-2">
-
-                                        <LuUser />
-
-                                        {complaint.user?.name}
-
-                                    </div>
-
-                                    <div className="flex items-center gap-2">
-
-                                        <LuCircleAlert />
-
-                                        {complaint.status}
-
-                                    </div>
-
+                            <div className="w-60 space-y-1.5">
+                                <p className="font-mono text-xs text-slate-500">{complaint.complaintId}</p>
+                                <p className="text-sm font-bold text-slate-900">{complaint.title}</p>
+                                <p className="text-xs text-slate-600">{placeLine(complaint.location, isEn, num)}</p>
+                                <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ${STATUS_STYLE[complaint.status]?.badge}`}>
+                                    {t(`userDash.status.${complaint.status}`)}
+                                </span>
+                                <div className="flex gap-2 pt-1">
+                                    <Link
+                                        to={`/department/complaints?open=${complaint._id}`}
+                                        className="flex-1 rounded-lg bg-[#003893] py-1.5 text-center text-xs font-semibold text-white! no-underline"
+                                    >
+                                        {t("deptDash.complaints.view")}
+                                    </Link>
+                                    <a
+                                        href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex-1 rounded-lg border border-[#003893] py-1.5 text-center text-xs font-semibold text-[#003893]! no-underline"
+                                    >
+                                        {t("deptDash.view.directions")}
+                                    </a>
                                 </div>
-
-                                <button
-                                    onClick={() =>
-                                        window.open(
-                                            `https://www.google.com/maps/dir/?api=1&destination=${complaint.location.latitude},${complaint.location.longitude}`,
-                                            "_blank"
-                                        )
-                                    }
-                                    className="mt-4 w-full bg-[#0f4c81] hover:bg-[#08365c] text-white py-2 rounded-lg flex items-center justify-center gap-2"
-                                >
-
-                                    <LuNavigation />
-
-                                    Navigate
-
-                                </button>
-
                             </div>
-
                         </Popup>
-
                     </Marker>
-
-                ))}
-
-                {currentLocation && (
-                    <Marker position={currentLocation}>
-                        <Popup>You are here</Popup>
-                    </Marker>
-                )}
-
-            </MapContainer>
-
-        </div>
+                );
+            })}
+        </MapContainer>
     );
 };
 

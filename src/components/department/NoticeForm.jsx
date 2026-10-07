@@ -1,248 +1,246 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDispatch, useSelector } from "react-redux";
-import {
-    createNotice,
-    updateNotice,
-} from "../../redux/slices/noticeSlice";
+import { useTranslation } from "react-i18next";
 import { toast } from "react-toastify";
-import { LuX } from "react-icons/lu";
+import { LuFileUp, LuPaperclip, LuX } from "react-icons/lu";
+import { createNotice, updateNotice } from "../../redux/slices/noticeSlice";
+import { nepalLocations } from "../../data/nepalLocation";
 
+const inputClass =
+    "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-[#003893] focus:ring-2 focus:ring-[#003893]/20";
+
+const Field = ({ label, required, children, className = "" }) => (
+    <label className={`block ${className}`}>
+        <span className="mb-1.5 block text-sm font-semibold text-slate-700">
+            {label} {required && <span className="text-[#dc143c]">*</span>}
+        </span>
+        {children}
+    </label>
+);
+
+// Department ko sewa kshetra bhitra ko jilla ra sthaniya taha matra
+const areaOptions = (area = {}) => {
+    const provinces = area.province ? nepalLocations.filter((p) => p.province === area.province) : nepalLocations;
+    const districts = provinces.flatMap((p) => p.districts).filter((d) => !area.district || d.name === area.district);
+
+    return districts.map((district) => ({
+        ...district,
+        municipalities: area.municipalities?.length
+            ? district.municipalities.filter((m) => area.municipalities.includes(m.name))
+            : district.municipalities,
+    }));
+};
+
+// Sthaniya taha ko naam bata jilla
+const districtOf = (districts, municipality) => districts.find((d) => d.municipalities.some((m) => m.name === municipality))?.name || "";
+
+// Parent le khulda matra mount garchha, tyasaile state sidhai props bata
 const NoticeForm = ({ notice, onClose }) => {
     const dispatch = useDispatch();
-
+    const { t, i18n } = useTranslation();
+    const isEn = i18n.resolvedLanguage === "en";
     const { loading } = useSelector((state) => state.notice);
+    const { department } = useSelector((state) => state.department);
 
-    const [formData, setFormData] = useState({
-        title: "",
-        description: "",
-        municipality: "Kathmandu Metropolitan City",
-        ward: "",
-        priority: "low",
-        status: "active",
-    });
+    const districts = areaOptions(department?.serviceArea);
+    const firstDistrict = districts.length === 1 ? districts[0] : null;
 
+    const [formData, setFormData] = useState(() => ({
+        title: notice?.title || "",
+        description: notice?.description || "",
+        municipality: notice?.municipality || (firstDistrict?.municipalities.length === 1 ? firstDistrict.municipalities[0].name : ""),
+        ward: notice?.ward || "",
+        priority: notice?.priority || "medium",
+        category: notice?.category || "notice",
+        status: notice?.status || "active",
+    }));
+    const [district, setDistrict] = useState(() => districtOf(districts, notice?.municipality) || firstDistrict?.name || "");
     const [file, setFile] = useState(null);
 
+    // Esc le band
     useEffect(() => {
-        if (notice) {
-            setFormData({
-                title: notice.title || "",
-                description: notice.description || "",
-                municipality:
-                    notice.municipality || "Kathmandu Metropolitan City",
-                ward: notice.ward || "",
-                priority: notice.priority || "low",
-                status: notice.status || "active",
-            });
-        }
-    }, [notice]);
+        const onKey = (e) => e.key === "Escape" && onClose();
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [onClose]);
 
-    const handleChange = (e) => {
-        setFormData((prev) => ({
-            ...prev,
-            [e.target.name]: e.target.value,
-        }));
-    };
+    const selectedDistrict = districts.find((d) => d.name === district);
+    const municipality = selectedDistrict?.municipalities.find((m) => m.name === formData.municipality);
+    const label = (item) => (isEn ? item.name : item.nameNe);
+
+    const set = (field, value) => setFormData((prev) => ({ ...prev, [field]: value }));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         const data = new FormData();
-
-        Object.keys(formData).forEach((key) => {
-            data.append(key, formData[key]);
-        });
-
-        if (file) {
-            data.append("attachment", file);
-        }
+        Object.entries(formData).forEach(([key, value]) => data.append(key, value));
+        if (file) data.append("attachment", file);
 
         try {
             if (notice) {
-                await dispatch(
-                    updateNotice({
-                        id: notice._id,
-                        formData: data,
-                    })
-                ).unwrap();
-
-                toast.success("Notice updated successfully");
+                await dispatch(updateNotice({ id: notice._id, formData: data })).unwrap();
+                toast.success(t("deptDash.notices.updated"));
             } else {
                 await dispatch(createNotice(data)).unwrap();
-
-                toast.success("Notice created successfully");
+                toast.success(t("deptDash.notices.created"));
             }
-
             onClose();
-        } catch (err) {
-            toast.error(err?.message || "Operation failed");
+        } catch (error) {
+            toast.error(error?.message || t("deptDash.notices.failed"));
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-xl shadow-xl flex flex-col">
+    const f = (key) => t(`deptDash.notices.form.${key}`);
 
-                {/* Header */}
-                <div className="sticky top-0 bg-white z-20 border-b flex justify-between items-center p-5 rounded-t-xl">
-                    <h2 className="text-xl md:text-2xl font-bold">
-                        {notice ? "Edit Notice" : "Create Notice"}
-                    </h2>
-
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-gray-100"
-                    >
-                        <LuX size={22} />
+    // Body ma render: layout ko animation (transform) le fixed modal lai main bhitra nathunos
+    return createPortal(
+        <div className="fixed inset-0 z-60 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm sm:items-center sm:p-6" onClick={onClose}>
+            <div
+                role="dialog"
+                aria-modal="true"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-fade-up flex max-h-[95vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+            >
+                <header className="relative flex shrink-0 items-center justify-between bg-linear-to-r from-[#002a6e] to-[#003893] px-6 py-4 text-white">
+                    <div className="absolute inset-x-0 top-0 h-1 bg-[#dc143c]" />
+                    <h2 className="text-lg font-bold">{notice ? t("deptDash.notices.editTitle") : t("deptDash.notices.createTitle")}</h2>
+                    <button type="button" onClick={onClose} aria-label={f("cancel")} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20">
+                        <LuX size={18} />
                     </button>
-                </div>
+                </header>
 
-                {/* Form */}
-                <form
-                    onSubmit={handleSubmit}
-                    className="flex-1 overflow-y-auto p-6 space-y-5"
-                >
-                    {/* Title */}
-                    <div>
-                        <label className="block mb-2 font-semibold">
-                            Title
-                        </label>
+                <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex-1 space-y-4 overflow-y-auto p-6">
+                        <Field label={f("title")} required>
+                            <input value={formData.title} onChange={(e) => set("title", e.target.value)} required maxLength={200} placeholder={f("titlePlaceholder")} className={inputClass} />
+                        </Field>
 
-                        <input
-                            type="text"
-                            name="title"
-                            value={formData.title}
-                            onChange={handleChange}
-                            required
-                            className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                    </div>
-
-                    {/* Description */}
-                    <div>
-                        <label className="block mb-2 font-semibold">
-                            Description
-                        </label>
-
-                        <textarea
-                            rows={5}
-                            name="description"
-                            value={formData.description}
-                            onChange={handleChange}
-                            required
-                            className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                        />
-                    </div>
-
-                    {/* Municipality & Ward */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label className="block mb-2 font-semibold">
-                                Municipality
-                            </label>
-
-                            <input
-                                type="text"
-                                name="municipality"
-                                value={formData.municipality}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
+                        <Field label={f("description")} required>
+                            <textarea
+                                rows={6}
+                                value={formData.description}
+                                onChange={(e) => set("description", e.target.value)}
+                                required
+                                placeholder={f("descriptionPlaceholder")}
+                                className={`${inputClass} resize-y leading-6`}
                             />
-                        </div>
+                        </Field>
 
-                        <div>
-                            <label className="block mb-2 font-semibold">
-                                Ward
-                            </label>
-
-                            <input
-                                type="text"
-                                name="ward"
-                                value={formData.ward}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Priority & Status */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label className="block mb-2 font-semibold">
-                                Priority
-                            </label>
-
-                            <select
-                                name="priority"
-                                value={formData.priority}
-                                onChange={handleChange}
-                                className="w-full border rounded-lg p-3"
-                            >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-
-                        {notice && (
-                            <div>
-                                <label className="block mb-2 font-semibold">
-                                    Status
-                                </label>
-
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <Field label={f("district")} required>
                                 <select
-                                    name="status"
-                                    value={formData.status}
-                                    onChange={handleChange}
-                                    className="w-full border rounded-lg p-3"
+                                    value={district}
+                                    onChange={(e) => {
+                                        setDistrict(e.target.value);
+                                        set("municipality", "");
+                                        set("ward", "");
+                                    }}
+                                    required
+                                    disabled={districts.length === 1}
+                                    className={`${inputClass} disabled:bg-slate-50`}
                                 >
-                                    <option value="active">Active</option>
-                                    <option value="archived">Archived</option>
+                                    <option value="">{f("select")}</option>
+                                    {districts.map((item) => (
+                                        <option key={item.name} value={item.name}>{label(item)}</option>
+                                    ))}
                                 </select>
-                            </div>
-                        )}
+                            </Field>
+
+                            <Field label={f("municipality")} required>
+                                <select
+                                    value={formData.municipality}
+                                    onChange={(e) => {
+                                        set("municipality", e.target.value);
+                                        set("ward", "");
+                                    }}
+                                    required
+                                    disabled={!selectedDistrict}
+                                    className={`${inputClass} disabled:bg-slate-50`}
+                                >
+                                    <option value="">{f("select")}</option>
+                                    {selectedDistrict?.municipalities.map((item) => (
+                                        <option key={item.name} value={item.name}>{label(item)}</option>
+                                    ))}
+                                </select>
+                            </Field>
+
+                            <Field label={f("ward")}>
+                                <select value={formData.ward} onChange={(e) => set("ward", e.target.value)} disabled={!municipality} className={`${inputClass} disabled:bg-slate-50`}>
+                                    <option value="">{f("allWards")}</option>
+                                    {municipality?.wards.map((ward) => (
+                                        <option key={ward} value={ward}>{Number(ward).toLocaleString(isEn ? "en-US" : "ne-NP")}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                        </div>
+
+                        <div className={`grid gap-4 ${notice ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                            <Field label={f("type")}>
+                                <select value={formData.category} onChange={(e) => set("category", e.target.value)} className={inputClass}>
+                                    {["notice", "tender", "news", "press"].map((value) => (
+                                        <option key={value} value={value}>{t(`noticeTabs.${value}`)}</option>
+                                    ))}
+                                </select>
+                            </Field>
+
+                            <Field label={f("priority")}>
+                                <select value={formData.priority} onChange={(e) => set("priority", e.target.value)} className={inputClass}>
+                                    {["high", "medium", "low"].map((value) => (
+                                        <option key={value} value={value}>{t(`userDash.priority.${value}`)}</option>
+                                    ))}
+                                </select>
+                            </Field>
+
+                            {notice && (
+                                <Field label={f("status")}>
+                                    <select value={formData.status} onChange={(e) => set("status", e.target.value)} className={inputClass}>
+                                        <option value="active">{t("deptDash.notices.active")}</option>
+                                        <option value="archived">{t("deptDash.notices.archived")}</option>
+                                    </select>
+                                </Field>
+                            )}
+                        </div>
+
+                        {/* Sanlagna */}
+                        <div>
+                            <p className="mb-1.5 text-sm font-semibold text-slate-700">{f("attachment")}</p>
+                            <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition hover:border-[#003893]/50">
+                                <LuFileUp className="shrink-0 text-2xl text-[#003893]" />
+                                <span className="min-w-0 flex-1 text-sm">
+                                    <span className="block truncate font-medium text-slate-800">{file?.name || f("attachmentHint")}</span>
+                                    {notice?.attachment?.[0]?.url && <span className="block text-xs text-slate-500">{f("replaceHint")}</span>}
+                                </span>
+                                <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" onChange={(e) => setFile(e.target.files[0] || null)} className="sr-only" />
+                            </label>
+                            {notice?.attachment?.[0]?.url && !file && (
+                                <a href={notice.attachment[0].url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-[#003893] hover:underline">
+                                    <LuPaperclip />
+                                    {t("deptDash.notices.openAttachment")}
+                                </a>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Attachment */}
-                    <div>
-                        <label className="block mb-2 font-semibold">
-                            Attachment (Image / PDF)
-                        </label>
-
-                        <input
-                            type="file"
-                            accept=".jpg,.jpeg,.png,.webp,.pdf"
-                            onChange={(e) => setFile(e.target.files[0])}
-                            className="w-full border rounded-lg p-3"
-                        />
-                    </div>
-
-                    {/* Footer */}
-                    <div className="sticky bottom-0 bg-white border-t pt-5 flex flex-col-reverse sm:flex-row justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="w-full sm:w-auto px-6 py-3 border rounded-lg hover:bg-gray-100"
-                        >
-                            Cancel
+                    <footer className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
+                        <button type="button" onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                            {f("cancel")}
                         </button>
-
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full sm:w-auto px-6 py-3 bg-[#0f4c81] text-white rounded-lg hover:bg-[#0d3d67] disabled:opacity-60"
+                            className="flex items-center justify-center gap-2 rounded-xl bg-[#003893] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#002a6e] disabled:opacity-60"
                         >
-                            {loading
-                                ? "Saving..."
-                                : notice
-                                    ? "Update Notice"
-                                    : "Create Notice"}
+                            {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
+                            {loading ? f("saving") : notice ? f("save") : f("create")}
                         </button>
-                    </div>
+                    </footer>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
-export default NoticeForm;  
+export default NoticeForm;

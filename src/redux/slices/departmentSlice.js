@@ -163,9 +163,12 @@ export const logoutDepartmentAsync = createAsyncThunk(
     try {
       const token = localStorage.getItem("departmentToken");
 
+      // Yo device lai SOS notification pathauna banda garne
+      const fcmToken = localStorage.getItem("departmentFcmToken");
+
       await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/departments/logout`,
-        {},
+        { fcmToken },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -273,6 +276,7 @@ const departmentSlice = createSlice({
 
         localStorage.removeItem("departmentToken");
         localStorage.removeItem("departmentInfo");
+        localStorage.removeItem("departmentFcmToken");
       })
 
       // Update Department (Admin)
